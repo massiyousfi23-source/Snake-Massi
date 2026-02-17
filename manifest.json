@@ -1,0 +1,18 @@
+
+{
+  "short_name": "SnakeUltra",
+  "name": "Snake Ultra: Kichta & PUCCI",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/528/528105.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "orientation": "portrait"
+}
