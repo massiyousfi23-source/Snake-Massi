@@ -37,6 +37,7 @@ const App: React.FC = () => {
   });
 
   const [milestoneText, setMilestoneText] = useState('');
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   const gameLoopRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const nextDirectionRef = useRef<Direction>(Direction.UP);
@@ -54,15 +55,43 @@ const App: React.FC = () => {
     nextDirectionRef.current = Direction.UP;
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Snake Ultra',
+      text: `Mon score: ${gameState.score} sur Snake Ultra ! Essaye de débloquer le mode PUCCI !`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        setShowCopyFeedback(true);
+        setTimeout(() => setShowCopyFeedback(false), 2000);
+      }
+    } catch (err) {
+      console.warn('Partage non disponible');
+    }
+  };
+
+  const toggleInfo = () => {
+    setGameState(prev => ({
+      ...prev,
+      status: prev.status === 'INFO' ? 'START' : 'INFO'
+    }));
+  };
+
   const handleDirection = useCallback((dir: Direction) => {
     setGameState(prev => {
+      if (prev.status !== 'PLAYING') return prev;
+      
       let finalDir = dir;
       if (prev.isPucciActive) {
         finalDir = INVERTED_CONTROLS[dir] as Direction;
       }
 
-      // Prevent 180 degree turns
       const currentDir = prev.direction;
+      // Empêcher le retournement à 180 degrés
       if (
         (finalDir === Direction.UP && currentDir === Direction.DOWN) ||
         (finalDir === Direction.DOWN && currentDir === Direction.UP) ||
@@ -99,7 +128,7 @@ const App: React.FC = () => {
         y: prev.snake[0].y + DIRECTIONS[nextDirectionRef.current].y,
       };
 
-      // Collision Check: Walls or Self
+      // Collision murs ou corps
       if (
         newHead.x < 0 || newHead.x >= GRID_SIZE || 
         newHead.y < 0 || newHead.y >= GRID_SIZE ||
@@ -113,30 +142,22 @@ const App: React.FC = () => {
       let newFood = prev.food;
       let newColors = [...prev.colors];
       let newStatus: GameStatus = 'PLAYING';
-      let pucci = prev.isPucciActive;
 
-      // Eating Food
+      // Manger la nourriture
       if (newHead.x === prev.food.x && newHead.y === prev.food.y) {
         newScore += 1;
         newFood = getRandomPoint();
         
-        // Color logic
         if (newScore > 20) {
-          newColors.unshift('#ff00ff'); // Pucci glitchy magenta
+          newColors.unshift('#ff00ff');
         } else if (newScore > 10) {
-          newColors.unshift(getGrayscale(newScore)); // B&W phase
+          newColors.unshift(getGrayscale(newScore));
         } else {
-          newColors.unshift(getRandomColor()); // Rainbow phase
+          newColors.unshift(getRandomColor());
         }
 
-        // Milestone Level 10
-        if (newScore === 10) {
-          newStatus = 'EXPLODING_10';
-        } 
-        // Milestone Level 20
-        else if (newScore === 20) {
-          newStatus = 'EXPLODING_20';
-        }
+        if (newScore === 10) newStatus = 'EXPLODING_10';
+        if (newScore === 20) newStatus = 'EXPLODING_20';
       } else {
         newSnake.pop();
       }
@@ -149,22 +170,15 @@ const App: React.FC = () => {
         direction: nextDirectionRef.current,
         status: newStatus,
         colors: newColors,
-        isPucciActive: pucci,
       };
     });
   }, []);
 
-  // Level Up Animations
   useEffect(() => {
     if (gameState.status === 'EXPLODING_10' || gameState.status === 'EXPLODING_20') {
       const isLevel10 = gameState.status === 'EXPLODING_10';
+      setMilestoneText(isLevel10 ? "niveau Kichta atteint" : "vous avez débloquer le niveau PUCCI");
       
-      // Set the requested messages immediately
-      const targetText = isLevel10 ? "niveau Kichta atteint" : "vous avez débloquer le niveau PUCCI";
-      setMilestoneText(targetText);
-      
-      // Still call the service if we want to potentially fetch more dynamic content later,
-      // but the UI will show targetText first.
       getMilestoneMessage(isLevel10 ? 10 : 20).then(msg => setMilestoneText(msg));
 
       setTimeout(() => {
@@ -172,17 +186,17 @@ const App: React.FC = () => {
           ...prev,
           status: 'PLAYING',
           isPucciActive: isLevel10 ? false : true,
-          // If level 10, start making snake B&W by resetting current colors to grey
+          // Si niveau 10, on force le noir et blanc immédiatement
           colors: isLevel10 ? prev.snake.map((_, i) => getGrayscale(i)) : prev.colors
         }));
       }, EXPLOSION_DURATION);
     }
   }, [gameState.status]);
 
-  // Main Loop
   useEffect(() => {
     const frame = (time: number) => {
-      if (time - lastUpdateRef.current > INITIAL_SPEED - Math.min(gameState.score * 2, 80)) {
+      const speed = INITIAL_SPEED - Math.min(gameState.score * 3, 100);
+      if (time - lastUpdateRef.current > speed) {
         moveSnake();
         lastUpdateRef.current = time;
       }
@@ -195,41 +209,48 @@ const App: React.FC = () => {
   }, [moveSnake, gameState.score]);
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4 select-none overflow-hidden">
-      {/* Header */}
-      <div className="mb-6 w-full max-w-md flex justify-between items-end">
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-colors duration-1000 ${gameState.isPucciActive ? 'bg-red-950/20' : 'bg-[#050505]'}`}>
+      
+      {showCopyFeedback && (
+        <div className="fixed top-8 bg-white text-black px-6 py-3 rounded-full pixel-font text-[10px] z-[100] animate-bounce shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+          LIEN COPIÉ !
+        </div>
+      )}
+
+      <div className="mb-6 w-full max-w-md flex justify-between items-end px-2">
         <div>
-          <h2 className="pixel-font text-xs text-gray-500 mb-1">SCORE</h2>
+          <h2 className="pixel-font text-[8px] text-gray-500 mb-1 tracking-tighter">SCORE</h2>
           <p className="pixel-font text-2xl text-white">{gameState.score.toString().padStart(4, '0')}</p>
         </div>
-        <div className="text-right">
-          <h2 className="pixel-font text-xs text-gray-500 mb-1">MODE</h2>
-          <p className={`pixel-font text-sm ${gameState.isPucciActive ? 'text-red-500 glitch' : gameState.score > 10 ? 'text-gray-300' : 'text-green-400'}`}>
-            {gameState.isPucciActive ? 'PUCCI' : gameState.score > 10 ? 'NOIR & BLANC' : 'RAINBOW'}
-          </p>
+        <div className="flex gap-3">
+          <button onClick={toggleInfo} className="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all border border-white/10">
+            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </button>
+          <button onClick={handleShare} className="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all border border-white/10">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+          </button>
         </div>
       </div>
 
-      {/* Game Board */}
-      <div className="relative border-4 border-white/10 bg-[#0a0a0a] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(255,255,255,0.05)] aspect-square w-full max-w-md">
+      <div className="relative border-4 border-white/10 bg-[#0a0a0a] rounded-xl overflow-hidden shadow-[0_0_60px_rgba(255,255,255,0.05)] aspect-square w-full max-w-md">
         <div 
           className="grid h-full w-full" 
           style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)` }}
         >
-          {/* Grid Helper Lines */}
           {[...Array(GRID_SIZE * GRID_SIZE)].map((_, i) => (
-            <div key={i} className="border-[0.5px] border-white/[0.02]" />
+            <div key={i} className="border-[0.5px] border-white/[0.03]" />
           ))}
           
           {/* Food */}
           <div 
-            className="absolute rounded-full animate-pulse shadow-[0_0_15px_#fff]"
+            className="absolute rounded-full animate-pulse z-10"
             style={{
               width: `${100/GRID_SIZE}%`,
               height: `${100/GRID_SIZE}%`,
               left: `${(gameState.food.x / GRID_SIZE) * 100}%`,
               top: `${(gameState.food.y / GRID_SIZE) * 100}%`,
               backgroundColor: '#fff',
+              boxShadow: '0 0 20px #fff',
             }}
           />
 
@@ -237,17 +258,17 @@ const App: React.FC = () => {
           {gameState.snake.map((segment, i) => (
             <div 
               key={`${i}-${segment.x}-${segment.y}`}
-              className="absolute transition-all duration-150 ease-linear rounded-sm"
+              className="absolute transition-all duration-150 ease-linear"
               style={{
                 width: `${100/GRID_SIZE}%`,
                 height: `${100/GRID_SIZE}%`,
                 left: `${(segment.x / GRID_SIZE) * 100}%`,
                 top: `${(segment.y / GRID_SIZE) * 100}%`,
                 backgroundColor: gameState.colors[i] || '#fff',
-                boxShadow: `0 0 10px ${gameState.colors[i]}`,
+                boxShadow: `0 0 15px ${gameState.colors[i]}`,
                 zIndex: gameState.snake.length - i,
                 borderRadius: i === 0 ? '4px' : '2px',
-                transform: i === 0 ? 'scale(1.1)' : 'scale(0.95)',
+                transform: i === 0 ? 'scale(1.15)' : 'scale(0.95)',
               }}
             />
           ))}
@@ -257,47 +278,43 @@ const App: React.FC = () => {
         {gameState.status === 'START' && (
           <Overlay 
             title="SNAKE ULTRA" 
-            subtitle="Atteignez le niveau 10 pour le mode Kichta, et le niveau 20 pour débloquer PUCCI."
-            buttonText="Jouer" 
+            subtitle="Atteins le score 10 pour KICHTA et 20 pour PUCCI."
+            buttonText="COMMENCER" 
             onAction={resetGame} 
+          />
+        )}
+
+        {gameState.status === 'INFO' && (
+          <Overlay 
+            title="GUIDE GITHUB" 
+            subtitle="1. Upload ces fichiers. 2. Settings > Pages. 3. Branche 'main' > Save. 4. Attends 1min pour le lien bleu."
+            buttonText="RETOUR" 
+            onAction={toggleInfo} 
           />
         )}
 
         {gameState.status === 'GAME_OVER' && (
           <Overlay 
-            title="GAME OVER" 
+            title="PERDU" 
             subtitle={`Score final: ${gameState.score}`}
-            buttonText="Réessayer" 
+            buttonText="REREESSAYER" 
             onAction={resetGame} 
           />
         )}
 
         {gameState.status === 'EXPLODING_10' && (
-          <Overlay 
-            title={milestoneText || "niveau Kichta atteint"} 
-            buttonText="" 
-            onAction={() => {}} 
-            isExploding
-          />
+          <Overlay title={milestoneText} buttonText="" onAction={() => {}} isExploding />
         )}
 
         {gameState.status === 'EXPLODING_20' && (
-          <Overlay 
-            title={milestoneText || "vous avez débloquer le niveau PUCCI"} 
-            buttonText="" 
-            onAction={() => {}} 
-            isExploding
-          />
+          <Overlay title={milestoneText} buttonText="" onAction={() => {}} isExploding />
         )}
       </div>
 
-      {/* Controls */}
       <Controls onDirectionChange={handleDirection} isPucciActive={gameState.isPucciActive} />
       
-      {/* Desktop Instructions */}
-      <div className="hidden md:block mt-8 text-gray-500 pixel-font text-[10px] space-y-2 text-center opacity-50">
-        <p>UTILISEZ LES FLÈCHES DU CLAVIER</p>
-        {gameState.isPucciActive && <p className="text-red-500 animate-pulse">ALERTE : COMMANDES INVERSÉES</p>}
+      <div className="hidden md:block mt-10 text-gray-500 pixel-font text-[9px] text-center opacity-40">
+        <p>TOUCHES FLÉCHÉES POUR DIRIGER</p>
       </div>
     </div>
   );
