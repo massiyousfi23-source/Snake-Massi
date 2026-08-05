@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="36%" cy="28%" r="82%">
+      <stop offset="0" stop-color="#183321"/>
+      <stop offset="1" stop-color="#030705"/>
+    </radialGradient>
+    <linearGradient id="snake" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#caff59"/>
+      <stop offset="1" stop-color="#52ec6b"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M96 119h224c58 0 104 46 104 104s-46 104-104 104H209c-16 0-29 13-29 29s13 29 29 29h207v72H209c-56 0-101-45-101-101s45-101 101-101h111c18 0 32-14 32-32s-14-32-32-32H96v-72Z" fill="url(#snake)" filter="url(#glow)"/>
+  <circle cx="316" cy="208" r="10" fill="#051008"/>
+  <circle cx="359" cy="208" r="10" fill="#051008"/>
+  <path d="M420 151c32-30 54-27 70-13-25 2-36 11-46 30" fill="none" stroke="#ff5b67" stroke-width="14" stroke-linecap="round"/>
+</svg>
