@@ -70,11 +70,15 @@
     stageKichta: document.querySelector("#stageKichta"),
     stagePucci: document.querySelector("#stagePucci"),
     modeWarning: document.querySelector("#modeWarning"),
+    fireworksCanvas: document.querySelector("#fireworksCanvas"),
+    milestonePortrait: document.querySelector("#milestonePortrait"),
+    milestoneImage: document.querySelector("#milestoneImage"),
     toast: document.querySelector("#toast"),
     directionButtons: [...document.querySelectorAll("[data-direction]")],
   };
 
   const context = elements.canvas.getContext("2d");
+  const fireworksContext = elements.fireworksCanvas.getContext("2d");
   let bestScore = readStoredNumber(STORAGE_KEYS.best);
   let soundEnabled = readStoredValue(STORAGE_KEYS.sound, "on") !== "off";
   let game = createGame("idle");
@@ -87,6 +91,14 @@
   let toastTimer = null;
   let audioContext = null;
   let particles = [];
+  let fireworksAnimationId = null;
+  let fireworksParticles = [];
+  let fireworksColors = [];
+  let fireworksWidth = 0;
+  let fireworksHeight = 0;
+  let fireworksStartedAt = 0;
+  let fireworksLastFrameAt = 0;
+  let nextFireworkAt = 0;
 
   function createGame(mode = "idle") {
     const snake = [
@@ -230,6 +242,17 @@
         : "Niveau Kichta atteint. Le serpent passe en noir et blanc et accélère.",
       button: "CONTINUER",
       action: "continue",
+      celebration: isPucci
+        ? {
+            image: "./assets/chat-pucci.jpg",
+            alt: "Chat noir et blanc célébrant le niveau Pucci",
+            colors: ["#ff59c7", "#73f7ff", "#fff06a", "#ffffff", "#9b7bff"],
+          }
+        : {
+            image: "./assets/chat-kichta.jpg",
+            alt: "Chat tigré célébrant le niveau Kichta",
+            colors: ["#caff59", "#86ff78", "#ffd166", "#ff6b7a", "#ffffff"],
+          },
     });
     updateInterface();
   }
@@ -348,7 +371,7 @@
     });
   }
 
-  function showOverlay({ kicker, title, message, button, action, share = false }) {
+  function showOverlay({ kicker, title, message, button, action, share = false, celebration = null }) {
     overlayAction = action;
     elements.overlayKicker.textContent = kicker;
     elements.overlayTitle.innerHTML = title;
@@ -356,11 +379,139 @@
     elements.primaryActionLabel.textContent = button;
     elements.shareButton.hidden = !share;
     elements.overlay.classList.remove("is-hidden");
+    configureCelebration(celebration);
   }
 
   function hideOverlay() {
+    configureCelebration(null);
     elements.overlay.classList.add("is-hidden");
     elements.shareButton.hidden = true;
+  }
+
+  function configureCelebration(celebration) {
+    stopFireworks();
+    const isCelebrating = Boolean(celebration);
+    elements.overlay.classList.toggle("is-celebrating", isCelebrating);
+    elements.milestonePortrait.hidden = !isCelebrating;
+
+    if (!celebration) {
+      elements.milestoneImage.removeAttribute("src");
+      elements.milestoneImage.alt = "";
+      return;
+    }
+
+    elements.milestoneImage.src = celebration.image;
+    elements.milestoneImage.alt = celebration.alt;
+    startFireworks(celebration.colors);
+  }
+
+  function startFireworks(colors) {
+    stopFireworks(false);
+    fireworksColors = colors;
+    fireworksParticles = [];
+    fireworksStartedAt = performance.now();
+    fireworksLastFrameAt = fireworksStartedAt;
+    nextFireworkAt = fireworksStartedAt;
+    elements.fireworksCanvas.hidden = false;
+    resizeFireworksCanvas();
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    launchFirework();
+    launchFirework();
+    fireworksAnimationId = window.requestAnimationFrame(animateFireworks);
+  }
+
+  function stopFireworks(hideCanvas = true) {
+    if (fireworksAnimationId) window.cancelAnimationFrame(fireworksAnimationId);
+    fireworksAnimationId = null;
+    fireworksParticles = [];
+    fireworksContext.clearRect(0, 0, fireworksWidth, fireworksHeight);
+    if (hideCanvas) elements.fireworksCanvas.hidden = true;
+  }
+
+  function resizeFireworksCanvas() {
+    const bounds = elements.overlay.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    fireworksWidth = Math.max(1, bounds.width);
+    fireworksHeight = Math.max(1, bounds.height);
+    elements.fireworksCanvas.width = Math.round(fireworksWidth * ratio);
+    elements.fireworksCanvas.height = Math.round(fireworksHeight * ratio);
+    fireworksContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function launchFirework() {
+    if (!fireworksWidth || !fireworksHeight || !fireworksColors.length) return;
+
+    const centerX = fireworksWidth * (0.14 + Math.random() * 0.72);
+    const centerY = fireworksHeight * (0.12 + Math.random() * 0.44);
+    const particleCount = fireworksWidth < 420 ? 28 : 40;
+    const baseSpeed = Math.min(fireworksWidth, fireworksHeight) * 0.24;
+    const color = fireworksColors[randomInteger(fireworksColors.length)];
+
+    for (let index = 0; index < particleCount; index += 1) {
+      const angle = (Math.PI * 2 * index) / particleCount + Math.random() * 0.08;
+      const speed = baseSpeed * (0.55 + Math.random() * 0.65);
+      const life = 0.72 + Math.random() * 0.55;
+      fireworksParticles.push({
+        x: centerX,
+        y: centerY,
+        previousX: centerX,
+        previousY: centerY,
+        velocityX: Math.cos(angle) * speed,
+        velocityY: Math.sin(angle) * speed,
+        life,
+        maximumLife: life,
+        size: 1.1 + Math.random() * 1.6,
+        color,
+      });
+    }
+  }
+
+  function animateFireworks(timestamp) {
+    const delta = Math.min(0.035, Math.max(0.001, (timestamp - fireworksLastFrameAt) / 1000));
+    fireworksLastFrameAt = timestamp;
+
+    if (timestamp - fireworksStartedAt < 9000 && timestamp >= nextFireworkAt) {
+      launchFirework();
+      if (Math.random() > 0.55) launchFirework();
+      nextFireworkAt = timestamp + 280 + Math.random() * 300;
+    }
+
+    fireworksContext.clearRect(0, 0, fireworksWidth, fireworksHeight);
+    fireworksContext.globalCompositeOperation = "lighter";
+    const gravity = fireworksHeight * 0.22;
+
+    fireworksParticles = fireworksParticles.filter((particle) => {
+      particle.life -= delta;
+      if (particle.life <= 0) return false;
+
+      particle.previousX = particle.x;
+      particle.previousY = particle.y;
+      particle.velocityY += gravity * delta;
+      particle.velocityX *= 0.992;
+      particle.x += particle.velocityX * delta;
+      particle.y += particle.velocityY * delta;
+
+      const opacity = Math.max(0, particle.life / particle.maximumLife);
+      fireworksContext.save();
+      fireworksContext.globalAlpha = opacity;
+      fireworksContext.strokeStyle = particle.color;
+      fireworksContext.lineWidth = particle.size;
+      fireworksContext.lineCap = "round";
+      fireworksContext.shadowColor = particle.color;
+      fireworksContext.shadowBlur = 8;
+      fireworksContext.beginPath();
+      fireworksContext.moveTo(particle.previousX, particle.previousY);
+      fireworksContext.lineTo(particle.x, particle.y);
+      fireworksContext.stroke();
+      fireworksContext.restore();
+      return true;
+    });
+
+    fireworksContext.globalCompositeOperation = "source-over";
+    const shouldContinue = timestamp - fireworksStartedAt < 9000 || fireworksParticles.length > 0;
+    fireworksAnimationId = shouldContinue ? window.requestAnimationFrame(animateFireworks) : null;
   }
 
   function handlePrimaryAction() {
@@ -387,6 +538,7 @@
     elements.canvas.width = Math.round(boardSize * pixelRatio);
     elements.canvas.height = Math.round(boardSize * pixelRatio);
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    if (!elements.fireworksCanvas.hidden) resizeFireworksCanvas();
     draw(performance.now());
   }
 
