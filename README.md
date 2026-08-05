@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Snake Massi
 
-# Run and deploy your AI Studio app
+Un jeu Snake rapide, tactile et installable, conçu pour fonctionner directement sur téléphone et ordinateur.
 
-This contains everything you need to run your app locally.
+## Jouer
 
-View your app in AI Studio: https://ai.studio/apps/drive/1dS7bUrcwR9FoRW_irByhhXAvQwPcSHJC
+**[Ouvrir Snake Massi](https://massiyousfi23-source.github.io/Snake-Massi/)**
 
-## Run Locally
+## Commandes
 
-**Prerequisites:**  Node.js
+- Téléphone : glisser le doigt sur le plateau ou utiliser les boutons directionnels.
+- Ordinateur : flèches du clavier ou touches `ZQSD`.
+- Pause : bouton **Pause** ou touche `P` / espace.
 
+## Niveaux
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Classique** : le jeu de départ.
+- **Kichta** au score 10 : style noir et blanc et vitesse accrue.
+- **Pucci** au score 20 : couleurs néon et commandes inversées.
+
+Le record est conservé sur l’appareil. Après la première visite, le jeu peut aussi fonctionner hors ligne.
+
+## Technique
+
+Le projet utilise uniquement HTML, CSS et JavaScript. Il n’a besoin d’aucune dépendance, clé API ni étape de compilation. GitHub Pages sert directement les fichiers de la branche principale.
+
+Vérification rapide :
+
+```bash
+npm run check
+```
