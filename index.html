@@ -82,7 +82,11 @@
           </canvas>
 
           <div class="game-overlay" id="gameOverlay" role="status" aria-live="polite">
+            <canvas class="fireworks-layer" id="fireworksCanvas" width="600" height="600" aria-hidden="true" hidden></canvas>
             <div class="overlay-card">
+              <figure class="milestone-portrait" id="milestonePortrait" hidden>
+                <img id="milestoneImage" alt="" width="840" height="680">
+              </figure>
               <span class="overlay-kicker" id="overlayKicker">PRÊT À JOUER</span>
               <h1 id="overlayTitle">SNAKE<br><em>MASSI</em></h1>
               <p id="overlayMessage">Mange les pommes, évite les murs et bats ton record.</p>

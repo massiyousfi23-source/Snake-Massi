@@ -1,4 +1,4 @@
-const CACHE_NAME = "snake-massi-v1";
+const CACHE_NAME = "snake-massi-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,8 @@ const APP_SHELL = [
   "./icons/icon-512.png",
   "./icons/icon-512-maskable.png",
   "./icons/apple-touch-icon.png",
+  "./assets/chat-kichta.jpg",
+  "./assets/chat-pucci.jpg",
 ];
 
 self.addEventListener("install", (event) => {
