@@ -1,4 +1,4 @@
-const CACHE_NAME = "snake-massi-v2";
+const CACHE_NAME = "snake-massi-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
