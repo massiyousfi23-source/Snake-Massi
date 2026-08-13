@@ -248,7 +248,7 @@
 
     if (isFinal) {
       game.mode = "victory"; updateBestScore();
-      showOverlay({kicker:"NIVEAU 3 TERMINÉ",title:"KICHTA<br><em>♥ PUCCI</em>",message:"Victoire ! Les deux héros se retrouvent dans le cœur final.",button:"REJOUER",action:"restart",share:true,celebration:{image:"./assets/chat-kichta.jpg",secondaryImage:"./assets/chat-pucci.jpg",alt:"Kichta et Pucci réunis dans un cœur",heart:true,colors:["#ff365d","#ff59c7","#fff06a","#ffffff"]}});
+      showOverlay({kicker:"NIVEAU 3 TERMINÉ",title:"KICHTA<br><em>♥ PUCCI</em>",message:"Victoire ! Les deux héros célèbrent leur amour sous les feux d’artifice.",button:"REJOUER",action:"restart",share:true,celebration:{image:"./assets/kichta-pucci-amour-3d.png",alt:"Kichta et Pucci s’embrassant dans un cœur lumineux",heart:true,colors:["#ff365d","#ff59c7","#fff06a","#ffffff"]}});
       updateInterface(); return;
     }
 
@@ -955,7 +955,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=4").catch(() => {
+      navigator.serviceWorker.register("./sw.js?v=5").catch(() => {
         // Le mode hors ligne est optionnel et ne bloque jamais le jeu.
       });
     });

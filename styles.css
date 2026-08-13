@@ -986,9 +986,10 @@ footer {
   }
 }
 
-.milestone-portrait.is-heart{width:min(72%,310px);aspect-ratio:1.08;border:8px solid #fff;border-radius:0;clip-path:polygon(50% 96%,8% 55%,2% 32%,8% 14%,22% 4%,38% 8%,50% 22%,62% 8%,78% 4%,92% 14%,98% 32%,92% 55%);background:#ff365d}
-.milestone-portrait.is-heart img{position:absolute;top:0;width:55%;height:100%;object-fit:cover}
-.milestone-portrait.is-heart #milestoneImage{left:0;object-position:35% center}
-.milestone-portrait.is-heart #milestoneImageSecondary{display:block;right:0;object-position:65% center}
+.milestone-portrait.is-heart{width:min(78%,340px);aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:28px;background:#17040c;box-shadow:0 0 0 6px rgba(255,54,93,.18),0 0 42px rgba(255,54,93,.65),0 20px 54px rgba(0,0,0,.55);animation:heart-alive 1.65s ease-in-out infinite}
+.milestone-portrait.is-heart #milestoneImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:love-camera 7s ease-in-out infinite alternate}
+.milestone-portrait.is-heart #milestoneImageSecondary{display:none}
 [data-level="amour"] .board-frame{border-color:rgba(255,54,93,.6);box-shadow:inset 0 0 75px rgba(255,54,93,.2),0 0 38px rgba(255,89,199,.16)}
 #restartButton{border-color:rgba(202,255,89,.42);color:var(--lime)}
+@keyframes heart-alive{0%,100%{transform:scale(1)}45%{transform:scale(1.035)}55%{transform:scale(1.015)}70%{transform:scale(1.045)}}
+@keyframes love-camera{0%{transform:scale(1.01) translateY(0)}100%{transform:scale(1.09) translateY(-1.5%)}}
