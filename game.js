@@ -69,10 +69,13 @@
     stageClassic: document.querySelector("#stageClassic"),
     stageKichta: document.querySelector("#stageKichta"),
     stagePucci: document.querySelector("#stagePucci"),
+    stageAmour: document.querySelector("#stageAmour"),
     modeWarning: document.querySelector("#modeWarning"),
     fireworksCanvas: document.querySelector("#fireworksCanvas"),
     milestonePortrait: document.querySelector("#milestonePortrait"),
     milestoneImage: document.querySelector("#milestoneImage"),
+    milestoneImageSecondary: document.querySelector("#milestoneImageSecondary"),
+    restartButton: document.querySelector("#restartButton"),
     toast: document.querySelector("#toast"),
     directionButtons: [...document.querySelectorAll("[data-direction]")],
   };
@@ -100,7 +103,7 @@
   let fireworksLastFrameAt = 0;
   let nextFireworkAt = 0;
 
-  function createGame(mode = "idle") {
+  function createGame(mode = "idle", score = 0) {
     const snake = [
       { x: 10, y: 11 },
       { x: 10, y: 12 },
@@ -114,7 +117,7 @@
       food: createFood(snake),
       direction: "up",
       directionQueue: [],
-      score: 0,
+      score,
     };
   }
 
@@ -163,6 +166,7 @@
   }
 
   function getLevel(score = game.score) {
+    if (score >= 30) return "amour";
     if (score >= 20) return "pucci";
     if (score >= 10) return "kichta";
     return "classic";
@@ -181,6 +185,14 @@
     updateInterface();
     focusBoard();
     playTone("start");
+  }
+
+  function continueAfterLoss() {
+    const savedScore = game.score;
+    particles = [];
+    game = createGame("playing", savedScore);
+    lastStepAt = performance.now();
+    hideOverlay(); updateInterface(); focusBoard(); playTone("start");
   }
 
   function resumeGame() {
@@ -220,9 +232,10 @@
     showOverlay({
       kicker: game.score === bestScore && bestScore > 0 ? "NOUVEAU RECORD" : "PARTIE TERMINÉE",
       title: "BIEN<br><em>TENTÉ</em>",
-      message: `Score final : ${formatScore(game.score)}. Encore une partie pour aller plus loin.`,
-      button: "RÉESSAYER",
-      action: "restart",
+      message: `Score atteint : ${formatScore(game.score)}. Continue au même score ou recommence.`,
+      button: "CONTINUER",
+      action: "continue-loss",
+      restart: true,
       share: true,
     });
   }
@@ -231,6 +244,13 @@
     game.mode = "milestone";
     game.directionQueue = [];
     const isPucci = score === 20;
+    const isFinal = score === 30;
+
+    if (isFinal) {
+      game.mode = "victory"; updateBestScore();
+      showOverlay({kicker:"NIVEAU 3 TERMINÉ",title:"KICHTA<br><em>♥ PUCCI</em>",message:"Victoire ! Les deux héros se retrouvent dans le cœur final.",button:"REJOUER",action:"restart",share:true,celebration:{image:"./assets/chat-kichta.jpg",secondaryImage:"./assets/chat-pucci.jpg",alt:"Kichta et Pucci réunis dans un cœur",heart:true,colors:["#ff365d","#ff59c7","#fff06a","#ffffff"]}});
+      updateInterface(); return;
+    }
 
     vibrate(isPucci ? [35, 25, 35, 25, 80] : [35, 35, 60]);
     playTone(isPucci ? "pucci" : "milestone");
@@ -317,7 +337,7 @@
       return;
     }
 
-    if (game.score === 10 || game.score === 20) activateMilestone(game.score);
+    if (game.score === 10 || game.score === 20 || game.score === 30) activateMilestone(game.score);
   }
 
   function updateBestScore() {
@@ -342,12 +362,13 @@
 
   function updateInterface() {
     const level = getLevel();
-    const levelNames = { classic: "CLASSIQUE", kichta: "KICHTA", pucci: "PUCCI" };
+    const levelNames = { classic: "CLASSIQUE", kichta: "KICHTA", pucci: "PUCCI", amour: "AMOUR" };
     const statusNames = {
       idle: "PRÊT",
       playing: "EN JEU",
       paused: "EN PAUSE",
       milestone: "NIVEAU DÉBLOQUÉ",
+      victory: "VICTOIRE",
       "game-over": "TERMINÉ",
     };
 
@@ -360,24 +381,25 @@
     elements.pauseButton.disabled = game.mode === "idle" || game.mode === "game-over" || game.mode === "milestone";
     elements.pauseLabel.textContent = game.mode === "paused" ? "Reprendre" : "Pause";
     elements.pauseButton.setAttribute("aria-label", game.mode === "paused" ? "Reprendre la partie" : "Mettre en pause");
-    elements.trackProgress.style.width = `${Math.min(100, (game.score / 20) * 100)}%`;
+    elements.trackProgress.style.width = `${Math.min(100, (game.score / 30) * 100)}%`;
     elements.modeWarning.hidden = !(level === "pucci" && game.mode === "playing");
 
-    const stages = [elements.stageClassic, elements.stageKichta, elements.stagePucci];
-    const activeIndex = level === "classic" ? 0 : level === "kichta" ? 1 : 2;
+    const stages = [elements.stageClassic, elements.stageKichta, elements.stagePucci, elements.stageAmour];
+    const activeIndex = level === "classic" ? 0 : level === "kichta" ? 1 : level === "pucci" ? 2 : 3;
     stages.forEach((stage, index) => {
       stage.classList.toggle("is-active", index === activeIndex);
       stage.classList.toggle("is-complete", index < activeIndex);
     });
   }
 
-  function showOverlay({ kicker, title, message, button, action, share = false, celebration = null }) {
+  function showOverlay({ kicker, title, message, button, action, share = false, restart = false, celebration = null }) {
     overlayAction = action;
     elements.overlayKicker.textContent = kicker;
     elements.overlayTitle.innerHTML = title;
     elements.overlayMessage.textContent = message;
     elements.primaryActionLabel.textContent = button;
     elements.shareButton.hidden = !share;
+    elements.restartButton.hidden = !restart;
     elements.overlay.classList.remove("is-hidden");
     configureCelebration(celebration);
   }
@@ -386,6 +408,7 @@
     configureCelebration(null);
     elements.overlay.classList.add("is-hidden");
     elements.shareButton.hidden = true;
+    elements.restartButton.hidden = true;
   }
 
   function configureCelebration(celebration) {
@@ -402,6 +425,9 @@
 
     elements.milestoneImage.src = celebration.image;
     elements.milestoneImage.alt = celebration.alt;
+    elements.milestoneImageSecondary.hidden = !celebration.secondaryImage;
+    if (celebration.secondaryImage) elements.milestoneImageSecondary.src = celebration.secondaryImage;
+    elements.milestonePortrait.classList.toggle("is-heart", Boolean(celebration.heart));
     startFireworks(celebration.colors);
   }
 
@@ -517,6 +543,7 @@
   function handlePrimaryAction() {
     ensureAudioContext();
     if (overlayAction === "resume" || overlayAction === "continue") resumeGame();
+    else if (overlayAction === "continue-loss") continueAfterLoss();
     else startNewGame();
   }
 
@@ -877,6 +904,7 @@
   function bindEvents() {
     elements.primaryAction.addEventListener("click", handlePrimaryAction);
     elements.shareButton.addEventListener("click", shareScore);
+    elements.restartButton.addEventListener("click", startNewGame);
     elements.pauseButton.addEventListener("click", togglePause);
     elements.soundButton.addEventListener("click", toggleSound);
     elements.helpButton.addEventListener("click", openHelp);
