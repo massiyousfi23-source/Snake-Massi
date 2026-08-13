@@ -955,7 +955,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {
+      navigator.serviceWorker.register("./sw.js?v=4").catch(() => {
         // Le mode hors ligne est optionnel et ne bloque jamais le jeu.
       });
     });
