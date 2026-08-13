@@ -30,7 +30,7 @@
           </span>
           <span>
             <strong>SNAKE MASSI</strong>
-            <small>KICHTA · PUCCI</small>
+            <small>KICHTA · PUCCI · AMOUR</small>
           </span>
         </a>
 
@@ -85,7 +85,7 @@
             <canvas class="fireworks-layer" id="fireworksCanvas" width="600" height="600" aria-hidden="true" hidden></canvas>
             <div class="overlay-card">
               <figure class="milestone-portrait" id="milestonePortrait" hidden>
-                <img id="milestoneImage" alt="" width="840" height="680">
+                <img id="milestoneImage" alt="" width="840" height="680"><img id="milestoneImageSecondary" alt="" width="840" height="680" hidden>
               </figure>
               <span class="overlay-kicker" id="overlayKicker">PRÊT À JOUER</span>
               <h1 id="overlayTitle">SNAKE<br><em>MASSI</em></h1>
@@ -95,7 +95,7 @@
                   <span>JOUER</span>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 8 7-8 7"/></svg>
                 </button>
-                <button class="secondary-button" id="shareButton" type="button" hidden>Partager le score</button>
+                <button class="secondary-button" id="restartButton" type="button" hidden>Recommencer</button><button class="secondary-button" id="shareButton" type="button" hidden>Partager le score</button>
               </div>
             </div>
           </div>
@@ -119,11 +119,8 @@
               <strong>Kichta</strong>
               <small>Score 10</small>
             </div>
-            <div class="stage" id="stagePucci">
-              <span class="stage-dot"></span>
-              <strong>Pucci</strong>
-              <small>Score 20</small>
-            </div>
+            <div class="stage" id="stagePucci"><span class="stage-dot"></span><strong>Pucci</strong><small>Score 20</small></div>
+            <div class="stage" id="stageAmour"><span class="stage-dot"></span><strong>Amour</strong><small>Score 30</small></div>
           </div>
         </div>
       </section>
@@ -162,7 +159,7 @@
           <li><span>01</span><p>Dirige le serpent avec les flèches, ZQSD, les boutons ou un glissement du doigt.</p></li>
           <li><span>02</span><p>Mange les pommes pour grandir. Les murs et ton propre corps mettent fin à la partie.</p></li>
           <li><span>10</span><p>Au score 10, tu débloques le niveau <strong>Kichta</strong>.</p></li>
-          <li><span>20</span><p>Au score 20, le niveau <strong>Pucci</strong> inverse toutes les commandes.</p></li>
+          <li><span>20</span><p>Au score 20, le niveau <strong>Pucci</strong> inverse toutes les commandes.</p></li><li><span>30</span><p>Au score 30, débloque la victoire <strong>KICHTA ♥ PUCCI</strong>.</p></li>
         </ol>
         <button class="primary-button primary-button--full" id="dialogPlayButton" type="button">JOUER MAINTENANT</button>
       </div>
