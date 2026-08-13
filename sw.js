@@ -1,9 +1,9 @@
-const CACHE_NAME = "snake-massi-v3";
+const CACHE_NAME = "snake-massi-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./game.js",
+  "./styles.css?v=4",
+  "./game.js?v=4",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
