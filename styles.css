@@ -587,7 +587,7 @@ canvas:focus-visible {
 
 .track-stages {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-top: -7px;
 }
 
@@ -985,3 +985,10 @@ footer {
     transition-duration: 0.01ms !important;
   }
 }
+
+.milestone-portrait.is-heart{width:min(72%,310px);aspect-ratio:1.08;border:8px solid #fff;border-radius:0;clip-path:polygon(50% 96%,8% 55%,2% 32%,8% 14%,22% 4%,38% 8%,50% 22%,62% 8%,78% 4%,92% 14%,98% 32%,92% 55%);background:#ff365d}
+.milestone-portrait.is-heart img{position:absolute;top:0;width:55%;height:100%;object-fit:cover}
+.milestone-portrait.is-heart #milestoneImage{left:0;object-position:35% center}
+.milestone-portrait.is-heart #milestoneImageSecondary{display:block;right:0;object-position:65% center}
+[data-level="amour"] .board-frame{border-color:rgba(255,54,93,.6);box-shadow:inset 0 0 75px rgba(255,54,93,.2),0 0 38px rgba(255,89,199,.16)}
+#restartButton{border-color:rgba(202,255,89,.42);color:var(--lime)}
