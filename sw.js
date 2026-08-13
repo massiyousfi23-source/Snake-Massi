@@ -1,9 +1,9 @@
-const CACHE_NAME = "snake-massi-v5";
+const CACHE_NAME = "snake-massi-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=5",
-  "./game.js?v=5",
+  "./styles.css?v=6",
+  "./game.js?v=6",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
@@ -13,6 +13,7 @@ const APP_SHELL = [
   "./assets/chat-kichta.jpg",
   "./assets/chat-pucci.jpg",
   "./assets/kichta-pucci-amour-3d.png",
+  "./assets/kichta-pucci-amour-3d-mobile.jpg",
 ];
 
 self.addEventListener("install", (event) => {

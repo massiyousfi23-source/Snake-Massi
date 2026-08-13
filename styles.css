@@ -986,10 +986,11 @@ footer {
   }
 }
 
-.milestone-portrait.is-heart{width:min(78%,340px);aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:28px;background:#17040c;box-shadow:0 0 0 6px rgba(255,54,93,.18),0 0 42px rgba(255,54,93,.65),0 20px 54px rgba(0,0,0,.55);animation:heart-alive 1.65s ease-in-out infinite}
-.milestone-portrait.is-heart #milestoneImage{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:love-camera 7s ease-in-out infinite alternate}
+.milestone-portrait.is-heart{width:min(72%,300px);aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:28px;background-color:#17040c;background-position:center;background-size:cover;background-repeat:no-repeat;box-shadow:0 0 0 6px rgba(255,54,93,.18),0 0 42px rgba(255,54,93,.65),0 20px 54px rgba(0,0,0,.55);animation:heart-alive 1.65s ease-in-out infinite}
+.milestone-portrait.is-heart #milestoneImage{display:none}
 .milestone-portrait.is-heart #milestoneImageSecondary{display:none}
 [data-level="amour"] .board-frame{border-color:rgba(255,54,93,.6);box-shadow:inset 0 0 75px rgba(255,54,93,.2),0 0 38px rgba(255,89,199,.16)}
 #restartButton{border-color:rgba(202,255,89,.42);color:var(--lime)}
 @keyframes heart-alive{0%,100%{transform:scale(1)}45%{transform:scale(1.035)}55%{transform:scale(1.015)}70%{transform:scale(1.045)}}
 @keyframes love-camera{0%{transform:scale(1.01) translateY(0)}100%{transform:scale(1.09) translateY(-1.5%)}}
+@media(max-width:480px){.game-overlay.is-celebrating{padding:8px}.game-overlay.is-celebrating .milestone-portrait.is-heart{width:min(62%,235px);margin-bottom:6px}.game-overlay.is-celebrating .overlay-card h1{margin:5px 0 4px;font-size:clamp(1.15rem,5.5vw,1.75rem)}.game-overlay.is-celebrating .overlay-card p{margin-bottom:7px;font-size:.65rem}.game-overlay.is-celebrating .overlay-actions{gap:6px}.game-overlay.is-celebrating .primary-button,.game-overlay.is-celebrating .secondary-button{min-height:38px}}

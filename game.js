@@ -248,7 +248,7 @@
 
     if (isFinal) {
       game.mode = "victory"; updateBestScore();
-      showOverlay({kicker:"NIVEAU 3 TERMINÉ",title:"KICHTA<br><em>♥ PUCCI</em>",message:"Victoire ! Les deux héros célèbrent leur amour sous les feux d’artifice.",button:"REJOUER",action:"restart",share:true,celebration:{image:"./assets/kichta-pucci-amour-3d.png",alt:"Kichta et Pucci s’embrassant dans un cœur lumineux",heart:true,colors:["#ff365d","#ff59c7","#fff06a","#ffffff"]}});
+      showOverlay({kicker:"NIVEAU 3 TERMINÉ",title:"KICHTA<br><em>♥ PUCCI</em>",message:"Victoire ! Les deux héros célèbrent leur amour sous les feux d’artifice.",button:"REJOUER",action:"restart",share:true,celebration:{image:"./assets/kichta-pucci-amour-3d-mobile.jpg",alt:"Kichta et Pucci s’embrassant dans un cœur lumineux",heart:true,colors:["#ff365d","#ff59c7","#fff06a","#ffffff"]}});
       updateInterface(); return;
     }
 
@@ -416,6 +416,7 @@
     const isCelebrating = Boolean(celebration);
     elements.overlay.classList.toggle("is-celebrating", isCelebrating);
     elements.milestonePortrait.hidden = !isCelebrating;
+    elements.milestonePortrait.style.removeProperty("background-image");
 
     if (!celebration) {
       elements.milestoneImage.removeAttribute("src");
@@ -428,6 +429,7 @@
     elements.milestoneImageSecondary.hidden = !celebration.secondaryImage;
     if (celebration.secondaryImage) elements.milestoneImageSecondary.src = celebration.secondaryImage;
     elements.milestonePortrait.classList.toggle("is-heart", Boolean(celebration.heart));
+    if (celebration.heart) elements.milestonePortrait.style.backgroundImage = `url("${celebration.image}")`;
     startFireworks(celebration.colors);
   }
 
@@ -955,7 +957,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=5").catch(() => {
+      navigator.serviceWorker.register("./sw.js?v=6").catch(() => {
         // Le mode hors ligne est optionnel et ne bloque jamais le jeu.
       });
     });
