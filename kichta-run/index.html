@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101511"><meta name="description" content="Kichta Run — le mini-jeu de course du chat Kichta.">
-  <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="bonus.css">
+  <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="bonus.css"><link rel="stylesheet" href="ui.css">
   <title>Kichta Run</title>
 </head>
 <body>
   <main class="shell">
-    <header><div class="brand"><span class="logo">K</span><div><h1>KICHTA RUN</h1><p>COURS · SAUTE · RONRONNE</p></div></div><button id="sound" aria-label="Activer ou couper le son">♪</button></header>
+    <header><div class="brand"><span class="logo">K</span><div><h1>KICHTA RUN</h1><p>COURS · SAUTE · RONRONNE</p></div></div><div class="header-actions"><button id="fullscreen" aria-label="Afficher le jeu en plein écran">⛶</button><button id="sound" aria-label="Activer ou couper le son">♪</button></div></header>
     <section class="stats"><div><small>SCORE</small><strong id="score">00000</strong></div><div><small>CROQUETTES</small><strong id="kibble">0 / 10</strong></div><div><small id="third-label">VITESSE</small><strong id="speed">1.0×</strong></div></section>
     <section class="game-wrap">
       <canvas id="game" width="960" height="430" aria-label="Jeu Kichta Run"></canvas>
-      <video id="cinematic" class="cinematic hidden" playsinline muted preload="auto"><source src="assets/kichta-paradise.mp4" type="video/mp4"></video>
+      <canvas id="cinematic" class="cinematic hidden" width="960" height="430" aria-label="Cinématique finale de Kichta"></canvas>
       <div class="overlay" id="overlay"><span class="eyebrow">PRÊT POUR LA COURSE ?</span><h2 id="title">Aide Kichta à éviter les obstacles</h2><p id="message">Touche l’écran, clique ou appuie sur Espace pour sauter.</p><button id="action">JOUER</button></div>
     </section>
     <div class="controls"><button id="jump">↑ <span>SAUTER</span></button><button id="fire" disabled>✦ <span>TIR 0/10</span></button><button id="pause">Ⅱ <span>PAUSE</span></button></div>

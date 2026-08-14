@@ -1,0 +1,5 @@
+.header-actions{display:flex;gap:8px}
+.header-actions button{width:48px;height:48px;font-size:22px}
+#fullscreen{font-size:25px}
+.game-wrap.pseudo-fullscreen{position:fixed;inset:0;z-index:1000;border:0;border-radius:0;background:#000;display:grid;place-items:center}
+.game-wrap.pseudo-fullscreen canvas{width:100vw;max-height:100vh}
