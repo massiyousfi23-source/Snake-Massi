@@ -1,0 +1,5 @@
+#fire{border-color:#efbd49;color:#ffe18a;box-shadow:0 0 22px #f0bd3030}
+#fire:disabled{opacity:.38;box-shadow:none}
+#fire.ready{background:#ffd34e;color:#332500;animation:pulse .8s infinite alternate}
+@keyframes pulse{to{transform:translateY(-2px);box-shadow:0 0 28px #ffd54f88}}
+@media(max-width:560px){.stats div{padding:9px}.stats strong{font-size:17px}.controls button{padding:12px 7px}.controls span{font-size:9px;margin-left:3px}}

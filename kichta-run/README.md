@@ -7,4 +7,4 @@ Un mini-jeu de course inspiré des runners hors connexion : aide Kichta à saute
 - Difficulté progressive et record local
 - Fonctionne hors connexion après la première visite
 
-Jouer : https://massiyousfi23-source.github.io/Kichta-Run/
+Jouer : https://massiyousfi23-source.github.io/Snake-Massi/kichta-run/
