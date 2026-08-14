@@ -12,11 +12,13 @@
     <section class="stats"><div><small>SCORE</small><strong id="score">00000</strong></div><div><small>CROQUETTES</small><strong id="kibble">0 / 10</strong></div><div><small id="third-label">VITESSE</small><strong id="speed">1.0×</strong></div></section>
     <section class="game-wrap">
       <canvas id="game" width="960" height="430" aria-label="Jeu Kichta Run"></canvas>
-      <canvas id="cinematic" class="cinematic hidden" width="960" height="430" aria-label="Cinématique finale de Kichta"></canvas>
+      <video id="cinematic" class="cinematic hidden" preload="auto" playsinline aria-label="Cinématique finale de Kichta">
+        <source src="assets/kichta-ending.mp4" type="video/mp4">
+      </video>
       <div class="overlay" id="overlay"><span class="eyebrow">PRÊT POUR LA COURSE ?</span><h2 id="title">Aide Kichta à éviter les obstacles</h2><p id="message">Touche l’écran, clique ou appuie sur Espace pour sauter.</p><button id="action">JOUER</button></div>
     </section>
     <div class="controls"><button id="jump">↑ <span>SAUTER</span></button><button id="fire" disabled>✦ <span>ARME 0/3</span></button><button id="pause">Ⅱ <span>PAUSE</span></button></div>
     <p class="hint">Espace / ↑ : sauter · F : tirer · P : pause</p>
   </main>
-  <script src="game.js?v=8"></script>
+  <script src="game.js?v=9"></script>
 </body></html>
