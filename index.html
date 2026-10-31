@@ -12,8 +12,10 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=6">
-    <script src="./game.js?v=6" defer></script>
+    <link rel="stylesheet" href="./styles.css?v=3d1">
+    <link rel="modulepreload" href="./vendor/three.core.min.js">
+    <link rel="modulepreload" href="./vendor/three.module.min.js">
+    <script type="module" src="./game.js?v=3d1"></script>
   </head>
   <body>
     <div class="ambient ambient--one" aria-hidden="true"></div>
@@ -77,7 +79,7 @@
         </div>
 
         <div class="board-frame" id="boardFrame">
-          <canvas id="gameCanvas" width="600" height="600" tabindex="0" aria-label="Plateau de Snake. Utilisez les flèches, ZQSD ou glissez le doigt pour diriger le serpent.">
+          <canvas id="gameCanvas" width="600" height="600" tabindex="0" aria-label="Plateau de Snake en 3D. Flèches gauche et droite, Q et D, ou touchez la moitié gauche ou droite du jeu pour tourner.">
             Votre navigateur ne prend pas en charge le jeu.
           </canvas>
 
@@ -89,7 +91,7 @@
               </figure>
               <span class="overlay-kicker" id="overlayKicker">PRÊT À JOUER</span>
               <h1 id="overlayTitle">SNAKE<br><em>MASSI</em></h1>
-              <p id="overlayMessage">Mange les pommes, évite les murs et bats ton record.</p>
+              <p id="overlayMessage">Tu es derrière la tête du serpent. Tourne à gauche ou à droite, mange les pommes et évite les murs.</p>
               <div class="overlay-actions">
                 <button class="primary-button" id="primaryAction" type="button">
                   <span>JOUER</span>
@@ -99,6 +101,8 @@
               </div>
             </div>
           </div>
+
+          <canvas class="snake-map" id="mapCanvas" width="110" height="110" aria-label="Mini-carte : le serpent et la pomme"></canvas>
 
           <div class="mode-warning" id="modeWarning" hidden>
             <span aria-hidden="true">⚠</span>
@@ -126,27 +130,22 @@
       </section>
 
       <section class="mobile-controls" aria-label="Commandes tactiles">
-        <p>GLISSE SUR LE JEU OU UTILISE LES TOUCHES</p>
-        <div class="d-pad">
-          <button class="control-button control-button--up" type="button" data-direction="up" aria-label="Monter">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 15 7-7 7 7"/></svg>
+        <p>TOUCHE LA GAUCHE OU LA DROITE DU JEU POUR TOURNER</p>
+        <div class="turn-pad">
+          <button class="control-button turn-button" type="button" data-turn="left" aria-label="Tourner à gauche">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 0 5-5V5"/></svg>
+            <span>GAUCHE</span>
           </button>
-          <button class="control-button control-button--left" type="button" data-direction="left" aria-label="Aller à gauche">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
-          </button>
-          <span class="d-pad-center" aria-hidden="true"></span>
-          <button class="control-button control-button--right" type="button" data-direction="right" aria-label="Aller à droite">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-          </button>
-          <button class="control-button control-button--down" type="button" data-direction="down" aria-label="Descendre">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 9 7 7 7-7"/></svg>
+          <button class="control-button turn-button" type="button" data-turn="right" aria-label="Tourner à droite">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 5 5-5 5m5-5H9a5 5 0 0 1-5-5V5"/></svg>
+            <span>DROITE</span>
           </button>
         </div>
       </section>
 
       <footer>
-        <span>FLÈCHES · ZQSD · SWIPE</span>
-        <span>HORS LIGNE APRÈS LA PREMIÈRE VISITE</span>
+        <span>← → · Q D · TOUCHER À GAUCHE / À DROITE</span>
+        <a class="footer-link" href="./kichta-run/">Jouer aussi à Kichta Run →</a>
       </footer>
     </main>
 
@@ -154,12 +153,12 @@
       <div class="dialog-content">
         <button class="dialog-close" id="closeHelpButton" type="button" aria-label="Fermer les règles">×</button>
         <span class="dialog-kicker">COMMENT JOUER</span>
-        <h2>Trois niveaux.<br>Un seul record.</h2>
+        <h2>Snake en 3D.<br>Un seul record.</h2>
         <ol class="rules-list">
-          <li><span>01</span><p>Dirige le serpent avec les flèches, ZQSD, les boutons ou un glissement du doigt.</p></li>
+          <li><span>01</span><p>La caméra est derrière la tête du serpent. Pour tourner : flèche gauche ou droite (ou Q / D), boutons GAUCHE / DROITE, ou touche la moitié gauche ou droite du jeu. La mini-carte en haut à droite montre la pomme.</p></li>
           <li><span>02</span><p>Mange les pommes pour grandir. Les murs et ton propre corps mettent fin à la partie.</p></li>
           <li><span>10</span><p>Au score 10, tu débloques le niveau <strong>Kichta</strong>.</p></li>
-          <li><span>20</span><p>Au score 20, le niveau <strong>Pucci</strong> inverse toutes les commandes.</p></li><li><span>30</span><p>Au score 30, débloque la victoire <strong>KICHTA ♥ PUCCI</strong>.</p></li>
+          <li><span>20</span><p>Au score 20, le niveau <strong>Pucci</strong> inverse gauche et droite.</p></li><li><span>30</span><p>Au score 30, débloque la victoire <strong>KICHTA ♥ PUCCI</strong>.</p></li>
         </ol>
         <button class="primary-button primary-button--full" id="dialogPlayButton" type="button">JOUER MAINTENANT</button>
       </div>

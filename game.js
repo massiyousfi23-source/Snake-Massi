@@ -1,9 +1,12 @@
+import { createSnakeWorld } from "./snake3d.js?v=3d1";
+
 (() => {
   "use strict";
 
   const GRID_SIZE = 20;
   const START_SPEED = 165;
-  const MIN_SPEED = 72;
+  // En 3D derrière la tête, la vitesse maximale est un peu plus douce qu'en 2D.
+  const MIN_SPEED = 85;
   const STORAGE_KEYS = {
     best: "snake-massi-best",
     sound: "snake-massi-sound",
@@ -23,17 +26,14 @@
     right: "left",
   };
 
-  const KEY_DIRECTIONS = {
-    ArrowUp: "up",
-    ArrowDown: "down",
+  // Avec la caméra derrière la tête, on tourne à gauche ou à droite
+  // par rapport au serpent (et non plus vers le haut ou le bas de l'écran).
+  const TURN_LEFT = { up: "left", left: "down", down: "right", right: "up" };
+  const TURN_RIGHT = { up: "right", right: "down", down: "left", left: "up" };
+
+  const KEY_TURNS = {
     ArrowLeft: "left",
     ArrowRight: "right",
-    z: "up",
-    Z: "up",
-    w: "up",
-    W: "up",
-    s: "down",
-    S: "down",
     q: "left",
     Q: "left",
     a: "left",
@@ -77,10 +77,13 @@
     milestoneImageSecondary: document.querySelector("#milestoneImageSecondary"),
     restartButton: document.querySelector("#restartButton"),
     toast: document.querySelector("#toast"),
-    directionButtons: [...document.querySelectorAll("[data-direction]")],
+    turnButtons: [...document.querySelectorAll("[data-turn]")],
+    mapCanvas: document.querySelector("#mapCanvas"),
   };
 
-  const context = elements.canvas.getContext("2d");
+  let world3d = null;
+  let renderProgress = 1;
+  let lastFrameAt = 0;
   const fireworksContext = elements.fireworksCanvas.getContext("2d");
   let bestScore = readStoredNumber(STORAGE_KEYS.best);
   let soundEnabled = readStoredValue(STORAGE_KEYS.sound, "on") !== "off";
@@ -93,7 +96,6 @@
   let installPrompt = null;
   let toastTimer = null;
   let audioContext = null;
-  let particles = [];
   let fireworksAnimationId = null;
   let fireworksParticles = [];
   let fireworksColors = [];
@@ -118,6 +120,9 @@
       direction: "up",
       directionQueue: [],
       score,
+      directions: DIRECTIONS,
+      previousSnake: null,
+      lastEaten: null,
     };
   }
 
@@ -178,7 +183,6 @@
   }
 
   function startNewGame() {
-    particles = [];
     game = createGame("playing");
     lastStepAt = performance.now();
     hideOverlay();
@@ -189,7 +193,6 @@
 
   function continueAfterLoss() {
     const savedScore = game.score;
-    particles = [];
     game = createGame("playing", savedScore);
     lastStepAt = performance.now();
     hideOverlay(); updateInterface(); focusBoard(); playTone("start");
@@ -307,6 +310,7 @@
       return;
     }
 
+    game.previousSnake = game.snake.map((part) => ({ x: part.x, y: part.y }));
     game.snake.unshift(newHead);
 
     if (!ateFood) {
@@ -317,7 +321,7 @@
     const eatenFood = game.food;
     game.score += 1;
     game.food = createFood(game.snake);
-    spawnParticles(eatenFood);
+    game.lastEaten = eatenFood;
     updateBestScore();
     updateInterface();
     vibrate(18);
@@ -346,17 +350,14 @@
     writeStoredValue(STORAGE_KEYS.best, bestScore);
   }
 
-  function queueDirection(requestedDirection) {
-    if (game.mode !== "playing" || !DIRECTIONS[requestedDirection]) return;
+  function queueTurn(requestedTurn) {
+    if (game.mode !== "playing" || (requestedTurn !== "left" && requestedTurn !== "right")) return;
 
-    const level = getLevel();
-    const actualDirection = level === "pucci" ? OPPOSITE[requestedDirection] : requestedDirection;
-    const lastQueued = game.directionQueue.at(-1) ?? game.direction;
-
-    if (actualDirection === lastQueued || actualDirection === OPPOSITE[lastQueued]) return;
+    // Niveau Pucci : les commandes sont inversées.
+    const turn = getLevel() === "pucci" ? (requestedTurn === "left" ? "right" : "left") : requestedTurn;
     if (game.directionQueue.length >= 2) return;
-
-    game.directionQueue.push(actualDirection);
+    const lastQueued = game.directionQueue.at(-1) ?? game.direction;
+    game.directionQueue.push(turn === "left" ? TURN_LEFT[lastQueued] : TURN_RIGHT[lastQueued]);
     vibrate(7);
   }
 
@@ -544,7 +545,8 @@
 
   function handlePrimaryAction() {
     ensureAudioContext();
-    if (overlayAction === "resume" || overlayAction === "continue") resumeGame();
+    if (overlayAction === "reload") window.location.reload();
+    else if (overlayAction === "resume" || overlayAction === "continue") resumeGame();
     else if (overlayAction === "continue-loss") continueAfterLoss();
     else startNewGame();
   }
@@ -558,17 +560,11 @@
   }
 
   function resizeCanvas() {
-    const bounds = elements.canvas.getBoundingClientRect();
-    const nextSize = Math.max(1, Math.floor(bounds.width));
-    const nextRatio = Math.min(window.devicePixelRatio || 1, 2.5);
-
-    boardSize = nextSize;
-    pixelRatio = nextRatio;
-    elements.canvas.width = Math.round(boardSize * pixelRatio);
-    elements.canvas.height = Math.round(boardSize * pixelRatio);
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    const bounds = elements.boardFrame.getBoundingClientRect();
+    boardSize = Math.max(1, Math.floor(bounds.width));
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    world3d?.resize(bounds.width, bounds.height, pixelRatio);
     if (!elements.fireworksCanvas.hidden) resizeFireworksCanvas();
-    draw(performance.now());
   }
 
   function gameLoop(timestamp) {
@@ -576,189 +572,12 @@
       stepGame();
       lastStepAt = timestamp;
     }
-
-    draw(timestamp);
+    // Avancement entre deux cases, pour un mouvement fluide en 3D.
+    if (game.mode === "playing") renderProgress = Math.min(1, Math.max(0, (timestamp - lastStepAt) / getSpeed()));
+    const delta = Math.min(0.05, Math.max(0, (timestamp - lastFrameAt) / 1000 || 0));
+    lastFrameAt = timestamp;
+    world3d?.render(game, getLevel(), renderProgress, timestamp, delta);
     window.requestAnimationFrame(gameLoop);
-  }
-
-  function draw(timestamp) {
-    const cell = boardSize / GRID_SIZE;
-    const level = getLevel();
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.clearRect(0, 0, boardSize, boardSize);
-
-    drawBoard(level, cell);
-    if (game.food) drawFood(game.food, cell, timestamp, level);
-    drawSnake(cell, timestamp, level);
-    drawParticles(cell, timestamp);
-  }
-
-  function drawBoard(level, cell) {
-    const gradient = context.createRadialGradient(
-      boardSize * 0.5,
-      boardSize * 0.42,
-      boardSize * 0.08,
-      boardSize * 0.5,
-      boardSize * 0.5,
-      boardSize * 0.78,
-    );
-
-    if (level === "pucci") {
-      gradient.addColorStop(0, "#190a17");
-      gradient.addColorStop(1, "#070407");
-    } else if (level === "kichta") {
-      gradient.addColorStop(0, "#151a16");
-      gradient.addColorStop(1, "#060806");
-    } else {
-      gradient.addColorStop(0, "#0b1b10");
-      gradient.addColorStop(1, "#050a07");
-    }
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, boardSize, boardSize);
-    context.beginPath();
-    context.strokeStyle = level === "pucci" ? "rgba(255, 102, 196, 0.065)" : "rgba(190, 255, 199, 0.055)";
-    context.lineWidth = Math.max(0.5, 1 / pixelRatio);
-
-    for (let index = 1; index < GRID_SIZE; index += 1) {
-      const position = Math.round(index * cell) + 0.5;
-      context.moveTo(position, 0);
-      context.lineTo(position, boardSize);
-      context.moveTo(0, position);
-      context.lineTo(boardSize, position);
-    }
-    context.stroke();
-  }
-
-  function drawFood(food, cell, timestamp, level) {
-    const pulse = 1 + Math.sin(timestamp / 170) * 0.08;
-    const centerX = (food.x + 0.5) * cell;
-    const centerY = (food.y + 0.53) * cell;
-    const radius = cell * 0.28 * pulse;
-    const foodColor = level === "pucci" ? "#ff63c7" : "#ff5b67";
-
-    context.save();
-    context.shadowColor = foodColor;
-    context.shadowBlur = cell * 0.65;
-    context.fillStyle = foodColor;
-    context.beginPath();
-    context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    context.fill();
-
-    context.shadowBlur = 0;
-    context.strokeStyle = "#baff76";
-    context.lineWidth = Math.max(1.5, cell * 0.08);
-    context.lineCap = "round";
-    context.beginPath();
-    context.moveTo(centerX + cell * 0.02, centerY - radius * 0.75);
-    context.quadraticCurveTo(centerX + cell * 0.1, centerY - cell * 0.48, centerX + cell * 0.28, centerY - cell * 0.35);
-    context.stroke();
-    context.restore();
-  }
-
-  function drawSnake(cell, timestamp, level) {
-    for (let index = game.snake.length - 1; index >= 0; index -= 1) {
-      const segment = game.snake[index];
-      const isHead = index === 0;
-      const inset = cell * (isHead ? 0.09 : 0.13);
-      const x = segment.x * cell + inset;
-      const y = segment.y * cell + inset;
-      const size = cell - inset * 2;
-      const color = snakeColor(index, timestamp, level);
-
-      context.save();
-      context.fillStyle = color;
-      context.shadowColor = color;
-      context.shadowBlur = isHead ? cell * 0.6 : cell * 0.18;
-      roundedRectangle(x, y, size, size, cell * (isHead ? 0.28 : 0.22));
-      context.fill();
-
-      if (isHead) drawEyes(x, y, size, cell, level);
-      context.restore();
-    }
-  }
-
-  function snakeColor(index, timestamp, level) {
-    if (level === "pucci") {
-      const hue = (timestamp / 18 + index * 24) % 360;
-      return `hsl(${hue} 94% 65%)`;
-    }
-
-    if (level === "kichta") {
-      const lightness = Math.max(42, 92 - index * 2.6);
-      return `hsl(130 6% ${lightness}%)`;
-    }
-
-    const lightness = Math.max(42, 69 - index * 1.15);
-    return `hsl(${118 + Math.min(index, 16)} 88% ${lightness}%)`;
-  }
-
-  function drawEyes(x, y, size, cell, level) {
-    const eyeRadius = Math.max(1.2, cell * 0.07);
-    const near = 0.3;
-    const far = 0.7;
-    let eyes;
-
-    if (game.direction === "up") eyes = [[near, 0.28], [far, 0.28]];
-    else if (game.direction === "down") eyes = [[near, 0.72], [far, 0.72]];
-    else if (game.direction === "left") eyes = [[0.28, near], [0.28, far]];
-    else eyes = [[0.72, near], [0.72, far]];
-
-    context.shadowBlur = 0;
-    context.fillStyle = level === "kichta" ? "#070a08" : "#051007";
-    for (const [positionX, positionY] of eyes) {
-      context.beginPath();
-      context.arc(x + size * positionX, y + size * positionY, eyeRadius, 0, Math.PI * 2);
-      context.fill();
-    }
-  }
-
-  function roundedRectangle(x, y, width, height, radius) {
-    const safeRadius = Math.min(radius, width / 2, height / 2);
-    context.beginPath();
-    context.moveTo(x + safeRadius, y);
-    context.arcTo(x + width, y, x + width, y + height, safeRadius);
-    context.arcTo(x + width, y + height, x, y + height, safeRadius);
-    context.arcTo(x, y + height, x, y, safeRadius);
-    context.arcTo(x, y, x + width, y, safeRadius);
-    context.closePath();
-  }
-
-  function spawnParticles(point) {
-    const color = getLevel() === "pucci" ? "#ff6cc9" : "#ff6571";
-    for (let index = 0; index < 12; index += 1) {
-      const angle = (Math.PI * 2 * index) / 12 + Math.random() * 0.25;
-      const speed = 1.2 + Math.random() * 1.4;
-      particles.push({
-        x: point.x + 0.5,
-        y: point.y + 0.5,
-        velocityX: Math.cos(angle) * speed,
-        velocityY: Math.sin(angle) * speed,
-        bornAt: performance.now(),
-        color,
-      });
-    }
-  }
-
-  function drawParticles(cell, timestamp) {
-    particles = particles.filter((particle) => timestamp - particle.bornAt < 520);
-
-    for (const particle of particles) {
-      const age = (timestamp - particle.bornAt) / 1000;
-      const opacity = Math.max(0, 1 - age / 0.52);
-      const x = (particle.x + particle.velocityX * age) * cell;
-      const y = (particle.y + particle.velocityY * age) * cell;
-
-      context.save();
-      context.globalAlpha = opacity;
-      context.fillStyle = particle.color;
-      context.shadowColor = particle.color;
-      context.shadowBlur = cell * 0.28;
-      context.beginPath();
-      context.arc(x, y, Math.max(1.2, cell * 0.07 * opacity), 0, Math.PI * 2);
-      context.fill();
-      context.restore();
-    }
   }
 
   function ensureAudioContext() {
@@ -869,10 +688,14 @@
   }
 
   function handleKeyDown(event) {
-    const direction = KEY_DIRECTIONS[event.key];
-    if (direction) {
+    const turn = KEY_TURNS[event.key];
+    if (turn) {
       event.preventDefault();
-      queueDirection(direction);
+      if (!event.repeat) queueTurn(turn);
+      return;
+    }
+    if (["ArrowUp", "ArrowDown"].includes(event.key)) {
+      event.preventDefault();
       return;
     }
 
@@ -888,9 +711,15 @@
   function handlePointerDown(event) {
     if (game.mode !== "playing" || event.target.closest("button")) return;
     pointerStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
-    elements.boardFrame.setPointerCapture?.(event.pointerId);
+    try {
+      elements.boardFrame.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Sans capture, le geste reste reconnu.
+    }
   }
 
+  // Toucher la moitié gauche ou droite du jeu fait tourner le serpent.
+  // Un glissement horizontal marche aussi.
   function handlePointerUp(event) {
     if (!pointerStart || pointerStart.pointerId !== event.pointerId) return;
 
@@ -898,9 +727,12 @@
     const deltaY = event.clientY - pointerStart.y;
     pointerStart = null;
 
-    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 18) return;
-    if (Math.abs(deltaX) > Math.abs(deltaY)) queueDirection(deltaX > 0 ? "right" : "left");
-    else queueDirection(deltaY > 0 ? "down" : "up");
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 18) {
+      const bounds = elements.boardFrame.getBoundingClientRect();
+      queueTurn(event.clientX < bounds.left + bounds.width / 2 ? "left" : "right");
+      return;
+    }
+    if (Math.abs(deltaX) > Math.abs(deltaY)) queueTurn(deltaX > 0 ? "right" : "left");
   }
 
   function bindEvents() {
@@ -917,8 +749,12 @@
       closeHelp();
     });
 
-    elements.directionButtons.forEach((button) => {
-      button.addEventListener("click", () => queueDirection(button.dataset.direction));
+    elements.turnButtons.forEach((button) => {
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        ensureAudioContext();
+        queueTurn(button.dataset.turn);
+      });
     });
 
     elements.boardFrame.addEventListener("pointerdown", handlePointerDown);
@@ -957,7 +793,7 @@
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=6").catch(() => {
+      navigator.serviceWorker.register("./sw.js?v=3d1").catch(() => {
         // Le mode hors ligne est optionnel et ne bloque jamais le jeu.
       });
     });
@@ -967,6 +803,18 @@
     elements.soundButton.setAttribute("aria-pressed", String(soundEnabled));
     elements.soundButton.setAttribute("aria-label", soundEnabled ? "Couper le son" : "Activer le son");
     bindEvents();
+    try {
+      world3d = createSnakeWorld({ canvas: elements.canvas, mapCanvas: elements.mapCanvas, gridSize: GRID_SIZE });
+    } catch (error) {
+      console.error(error);
+      showOverlay({
+        kicker: "3D INDISPONIBLE",
+        title: "OUPS…",
+        message: "Ton navigateur ne peut pas afficher la 3D (WebGL). Essaie avec Chrome, Safari ou Firefox à jour.",
+        button: "RÉESSAYER",
+        action: "reload",
+      });
+    }
     updateInterface();
     resizeCanvas();
     registerServiceWorker();
@@ -976,6 +824,24 @@
     }
 
     window.requestAnimationFrame(gameLoop);
+  }
+
+  // Mode test (ajouter ?debug à l'adresse) : accès à l'état du jeu dans la console.
+  if (new URLSearchParams(window.location.search).has("debug")) {
+    window.snakeMassi = {
+      get game() {
+        return game;
+      },
+      set game(value) {
+        game = value;
+      },
+      createGame,
+      stepGame,
+      queueTurn,
+      hideOverlay,
+      updateInterface,
+      getLevel,
+    };
   }
 
   initialise();
