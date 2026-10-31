@@ -1,57 +1,627 @@
-const $=s=>document.querySelector(s),canvas=$('#game'),ctx=canvas.getContext('2d');
-const ui={score:$('#score'),kibble:$('#kibble'),speed:$('#speed'),label:$('#third-label'),overlay:$('#overlay'),title:$('#title'),message:$('#message'),action:$('#action'),jump:$('#jump'),fire:$('#fire'),pause:$('#pause'),sound:$('#sound'),fullscreen:$('#fullscreen'),cinematic:$('#cinematic')};
-const W=960,H=430,GROUND=354,BOSS_AT=260;let mode='ready',last=0,score=0,kibble=0,ammo=0,kibbleStreak=0,wallDelay=0,speed=360,nextObs=1.1,nextBrick=2.2,bossTimer=0,victoryTime=0,sound=true,shake=0,worldX=0,cinematicTime=0;
-const cat={x:118,y:GROUND-105,w:126,h:105,vy:0,onGround:true,frame:0,anim:0};
-const obstacles=[],bricks=[],particles=[],shots=[];const clouds=[{x:120,y:70,s:1},{x:520,y:105,s:.7},{x:820,y:58,s:.9}];
-const catImgs=Array.from({length:6},(_,i)=>{const x=new Image;x.src=`assets/kichta/run-${i}.webp`;return x});const pucci=new Image;pucci.src='assets/pucci-boss.webp';
-const panorama=new Image;panorama.src='assets/alley-panorama.webp';const room=new Image;room.src='assets/cinematic-room.webp';
-const boss={x:755,y:GROUND-150,w:190,h:150,hp:3,flash:0,dying:0};
-const bossLayer=document.createElement('canvas');bossLayer.width=190;bossLayer.height=150;const bctx=bossLayer.getContext('2d');
-function pad(n){return Math.floor(n).toString().padStart(5,'0')}
-function reset(){score=0;kibble=0;ammo=0;kibbleStreak=0;wallDelay=0;speed=360;nextObs=1;nextBrick=1.7;bossTimer=0;victoryTime=0;worldX=0;cinematicTime=0;obstacles.length=bricks.length=particles.length=shots.length=0;Object.assign(cat,{y:GROUND-cat.h,vy:0,onGround:true,frame:0});Object.assign(boss,{hp:3,flash:0,dying:0});ui.cinematic.pause();ui.cinematic.currentTime=0;ui.cinematic.classList.add('hidden');mode='run';ui.overlay.classList.add('hidden');startMusic('run');hud()}
-function hud(){ui.score.textContent=pad(score);ui.kibble.textContent=`${kibble%3} / 3 · 🔫 ${ammo}`;ui.fire.disabled=ammo<1||!['run','boss'].includes(mode);ui.fire.classList.toggle('ready',ammo>0);ui.fire.querySelector('span').textContent=ammo>0?`TIR ×${ammo}`:`ARME ${kibble%3}/3`;ui.label.textContent=mode==='boss'?'BOSS':'VITESSE';ui.speed.textContent=mode==='boss'?'PUCCI':(speed/360).toFixed(1)+'×'}
-function show(tag,title,msg,button){ui.overlay.querySelector('.eyebrow').textContent=tag;ui.title.textContent=title;ui.message.textContent=msg;ui.action.textContent=button;ui.overlay.classList.remove('hidden')}
-function jump(){if(mode==='ready'||mode==='over'||mode==='won'){reset();return}if(mode==='paused'){resume();return}if(cat.onGround&&['run','boss'].includes(mode)){cat.vy=-740;cat.onGround=false;burst(cat.x+35,GROUND-5,'#e9d8a0',7);beep(520,.05)}}
-function fire(){if(ammo<1||!['run','boss'].includes(mode))return;ammo--;shots.push({x:cat.x+105,y:cat.y+35,w:44,h:18,v:780,boss:mode==='boss'});shake=3;playSfx('shot');hud()}
-function pause(){if(['run','boss'].includes(mode)){mode='paused';show('PAUSE','Kichta reprend son souffle.','Appuie sur Continuer ou sur P.','CONTINUER')}}
-function resume(){mode=score>=BOSS_AT?'boss':'run';ui.overlay.classList.add('hidden');last=performance.now();hud()}
-function addKibble(x,y){kibble++;kibbleStreak++;if(kibble%3===0)ammo++;if(kibbleStreak===4){wallDelay=1.35;kibbleStreak=0}particles.push({x,y,vx:0,vy:-95,r:10,a:1.4,type:'kibble'});playSfx('pickup');hud()}
-function enterBoss(){mode='boss';obstacles.length=bricks.length=0;bossTimer=1.2;shake=8;startMusic('boss');hud();particles.push({x:W/2,y:90,vx:0,vy:0,r:1,a:2.4,type:'bossText'})}
-function gameOver(){mode='over';cat.frame=5;shake=13;cartoonCrash();stopMusic();show('FIN DE COURSE','Oups… Kichta a été touchée.',`Score : ${pad(score)} · Croquettes : ${kibble} · Armes : ${ammo}`,'CONTINUER')}
-function continueRun(){obstacles.length=0;bricks.length=0;shots.length=0;Object.assign(cat,{y:GROUND-cat.h,vy:0,onGround:true,frame:0});mode=score>=BOSS_AT?'boss':'run';nextObs=1.25;bossTimer=1.4;ui.overlay.classList.add('hidden');startMusic(mode);last=performance.now();hud()}
-function bossExplosion(stage){const pos=stage===1?[boss.x+42,boss.y+125]:stage===2?[boss.x+150,boss.y+128]:[boss.x+95,boss.y+76];particles.push({x:pos[0],y:pos[1],vx:0,vy:0,r:stage===3?110:55,a:1.15,type:'boom',stage});burst(pos[0],pos[1],stage===3?'#fff2a1':'#ff8b3d',stage===3?70:34);shake=stage===3?30:16;if(stage===3){playSfx('wall');painMeow()}else playSfx('collision')}
-function win(){mode='bossEnding';boss.dying=1.7;obstacles.length=shots.length=0;bossExplosion(3)}
-function startCinematic(){mode='cinematic';cinematicTime=0;stopMusic();ui.cinematic.currentTime=0;ui.cinematic.muted=!sound;ui.cinematic.classList.remove('hidden');ui.overlay.classList.add('hidden');ui.cinematic.play().catch(()=>{})}
-function spawnObstacle(fromBoss=false){if(!fromBoss&&bricks.some(b=>b.x>W-250)){nextObs=.75;return}const types=fromBoss?['toy','laundry','vacuum']:['chair','lamp','vacuum','laundry','toy'];const type=types[Math.floor(Math.random()*types.length)];const dims={chair:[66,82],lamp:[48,100],vacuum:[68,64],laundry:[62,70],toy:[48,40]}[type],w=dims[0],h=dims[1];obstacles.push({x:fromBoss?boss.x-15:W+25,y:GROUND-h,w,h,type,fromBoss,passed:false,v:fromBoss?-(410+Math.random()*90):0})}
-function spawnWall(){obstacles.push({x:W+30,y:GROUND-158,w:82,h:158,type:'wall',fromBoss:false,passed:false,v:0})}
-function spawnBrick(){if(obstacles.some(o=>!o.fromBoss&&o.x>W-360)){nextBrick=.8;return}for(let i=0;i<4;i++)bricks.push({x:W+45+i*82,y:GROUND-120-(i%2)*42,w:34,h:26,hit:false,bump:0});nextBrick=5.5+Math.random()*1.8}
-function burst(x,y,color,n=10){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*180,vy:-40-Math.random()*160,r:2+Math.random()*5,a:1,type:'dust',color})}
-function update(dt){if(mode==='cinematic')return;if(!['run','boss','bossEnding'].includes(mode))return;if(mode==='bossEnding'){boss.dying-=dt;updateParticles(dt);if(boss.dying<=0)startCinematic();return}
-  const prevY=cat.y;score+=dt*(mode==='boss'?3:10);if(mode==='run'&&score>=BOSS_AT)enterBoss();speed=360+Math.min(240,score*.75);worldX+=speed*dt;cat.vy+=1950*dt;cat.y+=cat.vy*dt;if(cat.y>=GROUND-cat.h){if(!cat.onGround)burst(cat.x+35,GROUND-4,'#eadca9',8);cat.y=GROUND-cat.h;cat.vy=0;cat.onGround=true}cat.anim+=dt;if(cat.onGround&&cat.anim>.095){cat.frame=(cat.frame+1)%3;cat.anim=0}else if(!cat.onGround)cat.frame=cat.vy<0?3:4;
-  if(wallDelay>0){wallDelay-=dt;if(wallDelay<=0)spawnWall()}if(mode==='run'){nextObs-=dt;nextBrick-=dt;if(nextObs<=0){spawnObstacle();nextObs=1.05+Math.random()*1.15}if(nextBrick<=0)spawnBrick()}else{bossTimer-=dt;boss.flash=Math.max(0,boss.flash-dt);if(bossTimer<=0){spawnObstacle(true);bossTimer=1.05+Math.random()*.55}}
-  for(let i=bricks.length-1;i>=0;i--){const b=bricks[i];b.x-=speed*dt;b.bump=Math.max(0,b.bump-dt);if(!b.hit&&cat.x+cat.w-22>b.x&&cat.x+22<b.x+b.w&&cat.y+cat.h-12>b.y&&cat.y+12<b.y+b.h){b.hit=true;b.bump=.18;addKibble(b.x+b.w/2,b.y);burst(b.x+b.w/2,b.y,'#f6c753',8)}if(b.x+b.w<0)bricks.splice(i,1)}
-  for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i];o.x+=(o.fromBoss?o.v:-speed)*dt;if(o.fromBoss&&!o.passed&&o.x+o.w<cat.x){o.passed=true;addKibble(cat.x+cat.w/2,cat.y)}if(o.x+o.w<-30){obstacles.splice(i,1);continue}if(hit(cat,o)){gameOver();return}}
-  for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.x+=s.v*dt;burst(s.x,s.y+8,'#ffe369',1);if(mode==='boss'&&s.x+s.w>=boss.x+25){shots.splice(i,1);boss.hp--;boss.flash=.3;if(boss.hp>0)bossExplosion(3-boss.hp);else win();continue}for(let j=obstacles.length-1;j>=0;j--)if(hit(s,obstacles[j])){const target=obstacles[j];burst(target.x+target.w/2,target.y+target.h/2,'#ffd65a',target.type==='wall'?38:18);if(target.type==='wall')playSfx('wall');obstacles.splice(j,1);shots.splice(i,1);break}if(s.x>W+80&&shots[i])shots.splice(i,1)}updateParticles(dt);hud()}
-function updateParticles(dt){for(const p of particles){if(!['bossText','boom'].includes(p.type)){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=p.type==='kibble'?50*dt:280*dt}p.a-=dt}for(let i=particles.length-1;i>=0;i--)if(particles[i].a<=0)particles.splice(i,1)}
-function hit(a,b){return a.x+25<b.x+b.w&&a.x+a.w-22>b.x&&a.y+18<b.y+b.h&&a.y+a.h-8>b.y}
-function draw(){ctx.save();if(shake){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.86}drawSky();ctx.fillStyle=['boss','bossEnding'].includes(mode)?'#3c3047cc':'#332b2aaa';ctx.fillRect(0,GROUND,W,H-GROUND);ctx.fillStyle='#c48f58';ctx.fillRect(0,GROUND,W,7);for(let x=-(worldX%72);x<W;x+=72){ctx.fillStyle='#8e6751';ctx.fillRect(x,GROUND+24,38,4)}for(const b of bricks)drawBrick(b);for(const o of obstacles)drawObstacle(o);if(['boss','bossEnding'].includes(mode))drawBoss();drawCat();for(const s of shots)drawShot(s);drawParticles();ctx.restore()}
-function drawSky(){if(!panorama.complete||!panorama.naturalWidth){ctx.fillStyle='#33294f';ctx.fillRect(0,0,W,H);return}const progress=Math.min(1,score/BOSS_AT),cropW=panorama.naturalWidth*.46,sx=(panorama.naturalWidth-cropW)*progress;ctx.drawImage(panorama,sx,0,cropW,panorama.naturalHeight,0,0,W,H);if(['boss','bossEnding'].includes(mode)){ctx.fillStyle='#2a163b55';ctx.fillRect(0,0,W,H)}}
-function drawCat(){const im=catImgs[cat.frame];if(im.complete&&im.naturalWidth)ctx.drawImage(im,cat.x-42,cat.y-55,210,184);else{ctx.fillStyle='#745d49';ctx.fillRect(cat.x,cat.y,cat.w,cat.h)}}
-function drawBrick(b){if(b.hit)return;const y=b.y-(b.bump?8*Math.sin((.18-b.bump)/.18*Math.PI):0);ctx.save();ctx.translate(b.x+b.w/2,y+b.h/2);ctx.fillStyle='#9b5428';ctx.strokeStyle='#5f2f16';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<8;i++){const a=i*Math.PI/4,r=i%2?12:17,x=Math.cos(a)*r,y2=Math.sin(a)*r;if(i===0)ctx.moveTo(x,y2);else ctx.lineTo(x,y2)}ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle='#d98b43';for(const p of [[-6,-4],[5,-6],[2,5]]){ctx.beginPath();ctx.arc(p[0],p[1],2.3,0,7);ctx.fill()}ctx.restore()}
-function drawObstacle(o){ctx.save();if(o.type==='wall'){ctx.fillStyle='#9a6a48';ctx.fillRect(o.x,o.y,o.w,o.h);ctx.strokeStyle='#4d3021';ctx.lineWidth=3;for(let y=o.y;y<o.y+o.h;y+=26){for(let x=o.x-((y/26)%2)*18;x<o.x+o.w;x+=38)ctx.strokeRect(x,y,38,26)}ctx.fillStyle='#ffdd64';ctx.font='bold 18px sans-serif';ctx.fillText('TIRE !',o.x+9,o.y+78)}else if(o.type==='chair'){ctx.fillStyle='#8b5338';ctx.fillRect(o.x+8,o.y,o.w-16,16);ctx.fillRect(o.x+12,o.y+42,o.w-20,14);ctx.fillRect(o.x+14,o.y+54,8,28);ctx.fillRect(o.x+o.w-22,o.y+54,8,28);ctx.strokeStyle='#5b3425';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(o.x+12,o.y+8);ctx.lineTo(o.x+12,o.y+48);ctx.stroke()}else if(o.type==='lamp'){ctx.fillStyle='#e8c067';ctx.beginPath();ctx.moveTo(o.x+8,o.y+4);ctx.lineTo(o.x+40,o.y+4);ctx.lineTo(o.x+34,o.y+35);ctx.lineTo(o.x+14,o.y+35);ctx.closePath();ctx.fill();ctx.fillStyle='#6b5844';ctx.fillRect(o.x+21,o.y+34,6,58);ctx.fillRect(o.x+8,o.y+90,34,10)}else if(o.type==='vacuum'){ctx.fillStyle='#56759b';ctx.beginPath();ctx.ellipse(o.x+24,o.y+45,24,18,0,0,7);ctx.fill();ctx.fillStyle='#243a51';ctx.fillRect(o.x+7,o.y+53,48,11);ctx.strokeStyle='#859eb9';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(o.x+42,o.y+34);ctx.quadraticCurveTo(o.x+72,o.y+4,o.x+56,o.y);ctx.stroke()}else if(o.type==='laundry'){ctx.fillStyle='#d9c2a1';ctx.fillRect(o.x,o.y+15,o.w,o.h-15);ctx.strokeStyle='#8b765d';for(let y=o.y+22;y<o.y+o.h;y+=12){ctx.beginPath();ctx.moveTo(o.x,y);ctx.lineTo(o.x+o.w,y);ctx.stroke()}ctx.fillStyle='#e56875';ctx.beginPath();ctx.arc(o.x+20,o.y+15,19,0,7);ctx.fill();ctx.fillStyle='#61a8d1';ctx.beginPath();ctx.arc(o.x+43,o.y+13,20,0,7);ctx.fill()}else{ctx.fillStyle='#e65f64';ctx.beginPath();ctx.arc(o.x+24,o.y+20,20,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(o.x+17,o.y+15,5,0,7);ctx.arc(o.x+31,o.y+15,5,0,7);ctx.fill();ctx.fillStyle='#25242b';ctx.beginPath();ctx.arc(o.x+17,o.y+15,2,0,7);ctx.arc(o.x+31,o.y+15,2,0,7);ctx.fill()}ctx.restore()}
-function drawBoss(){bctx.clearRect(0,0,190,150);if(pucci.complete)bctx.drawImage(pucci,0,0,190,150);bctx.save();bctx.globalCompositeOperation='destination-out';if(boss.hp<=2){bctx.beginPath();bctx.arc(40,128,25,0,7);bctx.fill()}if(boss.hp<=1){bctx.beginPath();bctx.arc(148,128,30,0,7);bctx.fill();bctx.beginPath();bctx.arc(112,136,22,0,7);bctx.fill()}bctx.restore();if(boss.flash)ctx.globalAlpha=.45+Math.random()*.4;if(boss.hp>0||boss.dying>1.05)ctx.drawImage(bossLayer,boss.x,boss.y);ctx.globalAlpha=1;ctx.fillStyle='#2d2038dd';ctx.fillRect(675,16,260,48);ctx.fillStyle='#fff';ctx.font='bold 15px sans-serif';ctx.fillText('PUCCI · 3 MISSILES',695,39);for(let i=0;i<3;i++){ctx.fillStyle=i<boss.hp?'#8dff68':'#492d43';ctx.fillRect(785+i*44,48,36,7)}}
-function drawShot(s){ctx.save();ctx.translate(s.x,s.y);ctx.fillStyle=s.boss?'#ff694f':'#ffe051';ctx.beginPath();ctx.moveTo(44,9);ctx.lineTo(8,0);ctx.lineTo(0,9);ctx.lineTo(8,18);ctx.closePath();ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(-14,6,24,6);ctx.restore()}
-function drawVictory(){const t=victoryTime;const bowlX=655,bowlY=GROUND-28;ctx.fillStyle='#d44b54';ctx.beginPath();ctx.ellipse(bowlX,bowlY,72,22,0,0,Math.PI);ctx.lineTo(bowlX+55,bowlY+24);ctx.quadraticCurveTo(bowlX,bowlY+38,bowlX-55,bowlY+24);ctx.closePath();ctx.fill();ctx.fillStyle='#7a4b35';ctx.beginPath();ctx.ellipse(bowlX,bowlY,59,13,0,0,7);ctx.fill();ctx.strokeStyle='#fff9';ctx.lineWidth=5;for(let i=0;i<3;i++){const x=bowlX-30+i*30;ctx.beginPath();ctx.moveTo(x,bowlY-16);ctx.bezierCurveTo(x-15,bowlY-38-(t*15)%18,x+15,bowlY-55-(t*15)%18,x,bowlY-75);ctx.stroke()}const im=catImgs[4];if(im.complete)ctx.drawImage(im,470,GROUND-150+Math.sin(t*7)*3,205,180);ctx.fillStyle='#304329cc';ctx.fillRect(170,45,620,72);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='900 30px sans-serif';ctx.fillText('PUCCI EST VAINCU !',480,78);ctx.fillStyle='#a8ff83';ctx.font='bold 17px sans-serif';ctx.fillText('La récompense de Kichta : une bonne gamelle de pâtée',480,103);ctx.textAlign='left'}
-function drawParticles(){for(const p of particles){ctx.globalAlpha=Math.max(0,Math.min(1,p.a));if(p.type==='bossText'){ctx.fillStyle='#342641cc';ctx.fillRect(225,78,510,68);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='900 30px sans-serif';ctx.fillText('BOSS FINAL : PUCCI',480,115);ctx.font='bold 14px sans-serif';ctx.fillStyle='#ffe56e';ctx.fillText('Trois missiles sont nécessaires pour le vaincre !',480,137);ctx.textAlign='left'}else if(p.type==='boom'){const k=1-p.a/1.15,rr=p.r*(.35+k);ctx.save();ctx.globalCompositeOperation='lighter';const g=ctx.createRadialGradient(p.x,p.y,3,p.x,p.y,rr);g.addColorStop(0,'#fff');g.addColorStop(.2,'#fff59a');g.addColorStop(.5,'#ff7b27');g.addColorStop(1,'#d8190000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,rr,0,7);ctx.fill();ctx.strokeStyle='#fff3a0';ctx.lineWidth=7*(1-k);ctx.beginPath();ctx.arc(p.x,p.y,rr*.8,0,7);ctx.stroke();ctx.restore()}else if(p.type==='kibble'){ctx.fillStyle='#d88c2f';ctx.beginPath();ctx.moveTo(p.x,p.y-8);ctx.lineTo(p.x+9,p.y);ctx.lineTo(p.x,p.y+8);ctx.lineTo(p.x-9,p.y);ctx.closePath();ctx.fill()}else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}}ctx.globalAlpha=1}
-ui.cinematic.addEventListener('ended',()=>{mode='won';show('','','','REJOUER')});
-const tracks={run:new Audio('assets/audio/run-loop.mp3'),boss:new Audio('assets/audio/boss-loop.mp3')};Object.values(tracks).forEach(a=>{a.loop=true;a.preload='auto';a.load()});tracks.run.volume=.42;tracks.boss.volume=.55;let activeTrack=null;
-const sfx={pickup:'assets/audio/pickup.mp3',shot:'assets/audio/shot.mp3',collision:'assets/audio/collision.mp3',wall:'assets/audio/wall-break.mp3'};
-function playSfx(name,volume=.75){if(!sound)return;const a=new Audio(sfx[name]);a.volume=volume;a.play().catch(()=>{})}
-function startMusic(kind){stopMusic();if(!sound||!tracks[kind])return;activeTrack=tracks[kind];activeTrack.currentTime=0;activeTrack.play().catch(()=>{})}
-function stopMusic(){if(activeTrack){activeTrack.pause();activeTrack=null}}
-function cartoonCrash(){playSfx('collision',.95)}
-function painMeow(){if(!sound)return;const a=new Audio('assets/audio/pucci-meow.mp3');a.volume=1;a.playbackRate=.68;a.play().catch(()=>{});const fade=setInterval(()=>{a.volume=Math.max(0,a.volume-.08);if(a.volume<=.02||a.ended){clearInterval(fade);a.pause()}},150)}
-function beep(f,d){if(!sound)return;try{const a=new(AudioContext||webkitAudioContext),o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(.04,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)}catch{}}
-function loop(t){const dt=Math.min(.032,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}
-function leavePseudoFullscreen(){document.querySelector('.shell').classList.remove('pseudo-fullscreen');document.body.classList.remove('mobile-fullscreen');ui.fullscreen.textContent='⛶'}
-ui.action.onclick=()=>{sound=true;ui.sound.textContent='🔊';if(mode==='paused')resume();else if(mode==='over')continueRun();else reset()};ui.jump.onclick=jump;ui.fire.onclick=fire;ui.pause.onclick=()=>mode==='paused'?resume():pause();ui.sound.onclick=()=>{sound=!sound;ui.sound.textContent=sound?'🔊':'🔇';sound?startMusic(mode==='boss'?'boss':'run'):stopMusic()};ui.fullscreen.onclick=async()=>{const shell=document.querySelector('.shell'),mobile=matchMedia('(pointer:coarse)').matches||innerWidth<800;if(shell.classList.contains('pseudo-fullscreen')){leavePseudoFullscreen();return}if(mobile){shell.classList.add('pseudo-fullscreen');document.body.classList.add('mobile-fullscreen');ui.fullscreen.textContent='✕';scrollTo(0,0);try{await screen.orientation?.lock?.('landscape')}catch{}return}try{if(document.fullscreenElement)await document.exitFullscreen();else if(shell.requestFullscreen)await shell.requestFullscreen();else{shell.classList.add('pseudo-fullscreen');ui.fullscreen.textContent='✕'}}catch{shell.classList.add('pseudo-fullscreen');ui.fullscreen.textContent='✕'}};document.addEventListener('fullscreenchange',()=>{ui.fullscreen.textContent=document.fullscreenElement?'✕':'⛶'});canvas.addEventListener('pointerdown',jump);addEventListener('keydown',e=>{if(['Space','ArrowUp'].includes(e.code)){e.preventDefault();jump()}if(e.code==='KeyF')fire();if(e.code==='KeyP')mode==='paused'?resume():pause();if(e.code==='KeyM')ui.sound.click();if(e.code==='KeyX')ui.fullscreen.click();if(e.code==='Escape')leavePseudoFullscreen()});hud();requestAnimationFrame(loop);if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+// Kichta Run — règles du jeu, commandes et sons.
+// Le rendu 3D est dans run3d.js ; les chats sont dans cats.js.
+// Les positions restent en pixels comme dans la version 2D :
+// x = distance le long de la ruelle, y = hauteur (vers le bas).
+import { createRunWorld } from "./run3d.js?v=3d1";
+
+const $ = (selector) => document.querySelector(selector);
+const canvas = $("#game");
+const ui = {
+  score: $("#score"),
+  kibble: $("#kibble"),
+  speed: $("#speed"),
+  label: $("#third-label"),
+  overlay: $("#overlay"),
+  title: $("#title"),
+  message: $("#message"),
+  action: $("#action"),
+  jump: $("#jump"),
+  fire: $("#fire"),
+  pause: $("#pause"),
+  sound: $("#sound"),
+  fullscreen: $("#fullscreen"),
+  cinematic: $("#cinematic"),
+  bossHud: $("#bossHud"),
+  bossBanner: $("#bossBanner"),
+};
+
+const W = 960;
+const H = 430;
+const GROUND = 354;
+const BOSS_AT = 260;
+// En 3D on voit loin dans la ruelle : les obstacles apparaissent plus loin
+// (dans la brume) au lieu de surgir au bord de l'écran.
+const SPAWN_X = 1700;
+
+const game = {
+  mode: "ready",
+  score: 0,
+  kibble: 0,
+  ammo: 0,
+  kibbleStreak: 0,
+  wallDelay: 0,
+  speed: 360,
+  nextObs: 1.1,
+  nextBrick: 2.2,
+  bossTimer: 0,
+  shake: 0,
+  worldX: 0,
+  cat: { x: 118, y: GROUND - 105, w: 126, h: 105, vy: 0, onGround: true, frame: 0, anim: 0 },
+  boss: { x: 755, y: GROUND - 150, w: 190, h: 150, hp: 3, flash: 0, dying: 0 },
+  obstacles: [],
+  bricks: [],
+  particles: [],
+  shots: [],
+};
+const { cat, boss, obstacles, bricks, particles, shots } = game;
+
+let sound = true;
+let last = 0;
+let world3d = null;
+
+const isPlaying = () => game.mode === "run" || game.mode === "boss";
+const pad = (value) => Math.floor(value).toString().padStart(5, "0");
+
+// ---------------------------------------------------------------------------
+// Déroulement de la partie
+// ---------------------------------------------------------------------------
+
+function reset() {
+  Object.assign(game, {
+    score: 0,
+    kibble: 0,
+    ammo: 0,
+    kibbleStreak: 0,
+    wallDelay: 0,
+    speed: 360,
+    nextObs: 1,
+    nextBrick: 1.7,
+    bossTimer: 0,
+    worldX: 0,
+  });
+  obstacles.length = 0;
+  bricks.length = 0;
+  particles.length = 0;
+  shots.length = 0;
+  Object.assign(cat, { y: GROUND - cat.h, vy: 0, onGround: true, frame: 0 });
+  Object.assign(boss, { hp: 3, flash: 0, dying: 0 });
+  ui.cinematic.pause();
+  ui.cinematic.currentTime = 0;
+  ui.cinematic.classList.add("hidden");
+  game.mode = "run";
+  ui.overlay.classList.add("hidden");
+  startMusic("run");
+  hud();
+}
+
+function hud() {
+  ui.score.textContent = pad(game.score);
+  ui.kibble.textContent = `${game.kibble % 3} / 3 · 🔫 ${game.ammo}`;
+  ui.fire.disabled = game.ammo < 1 || !isPlaying();
+  ui.fire.classList.toggle("ready", game.ammo > 0);
+  ui.fire.querySelector("span").textContent = game.ammo > 0 ? `TIR ×${game.ammo}` : `ARME ${game.kibble % 3}/3`;
+  ui.label.textContent = game.mode === "boss" ? "BOSS" : "VITESSE";
+  ui.speed.textContent = game.mode === "boss" ? "PUCCI" : `${(game.speed / 360).toFixed(1)}×`;
+}
+
+function show(tag, title, message, button) {
+  ui.overlay.querySelector(".eyebrow").textContent = tag;
+  ui.title.textContent = title;
+  ui.message.textContent = message;
+  ui.action.textContent = button;
+  ui.overlay.classList.remove("hidden");
+}
+
+function jump() {
+  if (["ready", "over", "won"].includes(game.mode)) {
+    reset();
+    return;
+  }
+  if (game.mode === "paused") {
+    resume();
+    return;
+  }
+  if (cat.onGround && isPlaying()) {
+    cat.vy = -740;
+    cat.onGround = false;
+    burst(cat.x + 35, GROUND - 5, "#e9d8a0", 7);
+    beep(520, 0.05);
+  }
+}
+
+function fire() {
+  if (game.ammo < 1 || !isPlaying()) return;
+  game.ammo -= 1;
+  shots.push({ x: cat.x + 105, y: cat.y + 35, w: 44, h: 18, v: 780, boss: game.mode === "boss" });
+  game.shake = 3;
+  playSfx("shot");
+  hud();
+}
+
+function pause() {
+  if (!isPlaying()) return;
+  game.mode = "paused";
+  show("PAUSE", "Kichta reprend son souffle.", "Appuie sur Continuer ou sur P.", "CONTINUER");
+}
+
+function resume() {
+  game.mode = game.score >= BOSS_AT ? "boss" : "run";
+  ui.overlay.classList.add("hidden");
+  last = performance.now();
+  hud();
+}
+
+function addKibble(x, y) {
+  game.kibble += 1;
+  game.kibbleStreak += 1;
+  if (game.kibble % 3 === 0) game.ammo += 1;
+  if (game.kibbleStreak === 4) {
+    game.wallDelay = 1.35;
+    game.kibbleStreak = 0;
+  }
+  particles.push({ x, y, vx: 0, vy: -95, r: 10, a: 1.4, type: "kibble" });
+  playSfx("pickup");
+  hud();
+}
+
+function enterBoss() {
+  game.mode = "boss";
+  obstacles.length = 0;
+  bricks.length = 0;
+  game.bossTimer = 1.2;
+  game.shake = 8;
+  startMusic("boss");
+  hud();
+  particles.push({ x: W / 2, y: 90, vx: 0, vy: 0, r: 1, a: 2.4, type: "bossText" });
+}
+
+function gameOver() {
+  game.mode = "over";
+  cat.frame = 5;
+  game.shake = 13;
+  playSfx("collision", 0.95);
+  stopMusic();
+  show(
+    "FIN DE COURSE",
+    "Oups… Kichta a été touchée.",
+    `Score : ${pad(game.score)} · Croquettes : ${game.kibble} · Armes : ${game.ammo}`,
+    "CONTINUER",
+  );
+}
+
+// Continuer après une défaite : on garde le score et les armes.
+function continueRun() {
+  obstacles.length = 0;
+  bricks.length = 0;
+  shots.length = 0;
+  Object.assign(cat, { y: GROUND - cat.h, vy: 0, onGround: true, frame: 0 });
+  game.mode = game.score >= BOSS_AT ? "boss" : "run";
+  game.nextObs = 1.25;
+  game.bossTimer = 1.4;
+  ui.overlay.classList.add("hidden");
+  startMusic(game.mode);
+  last = performance.now();
+  hud();
+}
+
+function bossExplosion(stage) {
+  const positions = { 1: [boss.x + 42, boss.y + 125], 2: [boss.x + 150, boss.y + 128], 3: [boss.x + 95, boss.y + 76] };
+  const [x, y] = positions[stage];
+  particles.push({ x, y, vx: 0, vy: 0, r: stage === 3 ? 110 : 55, a: 1.15, type: "boom", stage });
+  burst(x, y, stage === 3 ? "#fff2a1" : "#ff8b3d", stage === 3 ? 70 : 34);
+  game.shake = stage === 3 ? 30 : 16;
+  if (stage === 3) {
+    playSfx("wall");
+    painMeow();
+  } else {
+    playSfx("collision");
+  }
+}
+
+function win() {
+  game.mode = "bossEnding";
+  boss.dying = 1.7;
+  obstacles.length = 0;
+  shots.length = 0;
+  bossExplosion(3);
+}
+
+function startCinematic() {
+  game.mode = "cinematic";
+  stopMusic();
+  ui.cinematic.currentTime = 0;
+  ui.cinematic.muted = !sound;
+  ui.cinematic.classList.remove("hidden");
+  ui.overlay.classList.add("hidden");
+  ui.bossHud.hidden = true;
+  ui.cinematic.play().catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Apparition des obstacles, des murs et des croquettes
+// ---------------------------------------------------------------------------
+
+const OBSTACLE_SIZES = { chair: [66, 82], lamp: [48, 100], vacuum: [68, 64], laundry: [62, 70], toy: [48, 40] };
+
+function spawnObstacle(fromBoss = false) {
+  if (!fromBoss && bricks.some((brick) => brick.x > SPAWN_X - 250)) {
+    game.nextObs = 0.75;
+    return;
+  }
+  const types = fromBoss ? ["toy", "laundry", "vacuum"] : ["chair", "lamp", "vacuum", "laundry", "toy"];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const [w, h] = OBSTACLE_SIZES[type];
+  obstacles.push({
+    x: fromBoss ? boss.x - 15 : SPAWN_X,
+    y: GROUND - h,
+    w,
+    h,
+    type,
+    fromBoss,
+    passed: false,
+    v: fromBoss ? -(410 + Math.random() * 90) : 0,
+  });
+}
+
+function spawnWall() {
+  obstacles.push({ x: SPAWN_X + 5, y: GROUND - 158, w: 82, h: 158, type: "wall", fromBoss: false, passed: false, v: 0 });
+}
+
+function spawnBrick() {
+  if (obstacles.some((obstacle) => !obstacle.fromBoss && obstacle.x > SPAWN_X - 360)) {
+    game.nextBrick = 0.8;
+    return;
+  }
+  for (let index = 0; index < 4; index += 1) {
+    bricks.push({ x: SPAWN_X + 20 + index * 82, y: GROUND - 120 - (index % 2) * 42, w: 34, h: 26, hit: false, bump: 0 });
+  }
+  game.nextBrick = 5.5 + Math.random() * 1.8;
+}
+
+function burst(x, y, color, count = 10) {
+  for (let index = 0; index < count; index += 1) {
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 180,
+      vy: -40 - Math.random() * 160,
+      r: 2 + Math.random() * 5,
+      a: 1,
+      type: "dust",
+      color,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mise à jour à chaque image
+// ---------------------------------------------------------------------------
+
+function hit(a, b) {
+  return a.x + 25 < b.x + b.w && a.x + a.w - 22 > b.x && a.y + 18 < b.y + b.h && a.y + a.h - 8 > b.y;
+}
+
+function updateParticles(dt) {
+  for (const particle of particles) {
+    if (particle.type !== "bossText" && particle.type !== "boom") {
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
+      particle.vy += particle.type === "kibble" ? 50 * dt : 280 * dt;
+    }
+    particle.a -= dt;
+  }
+  for (let index = particles.length - 1; index >= 0; index -= 1) {
+    if (particles[index].a <= 0) particles.splice(index, 1);
+  }
+}
+
+function update(dt) {
+  if (!["run", "boss", "bossEnding"].includes(game.mode)) return;
+  if (game.mode === "bossEnding") {
+    boss.dying -= dt;
+    updateParticles(dt);
+    if (boss.dying <= 0) startCinematic();
+    return;
+  }
+
+  game.score += dt * (game.mode === "boss" ? 3 : 10);
+  if (game.mode === "run" && game.score >= BOSS_AT) enterBoss();
+  game.speed = 360 + Math.min(240, game.score * 0.75);
+  game.worldX += game.speed * dt;
+
+  // Saut et animation de course
+  cat.vy += 1950 * dt;
+  cat.y += cat.vy * dt;
+  if (cat.y >= GROUND - cat.h) {
+    if (!cat.onGround) burst(cat.x + 35, GROUND - 4, "#eadca9", 8);
+    cat.y = GROUND - cat.h;
+    cat.vy = 0;
+    cat.onGround = true;
+  }
+  cat.anim += dt;
+  if (cat.onGround && cat.anim > 0.095) {
+    cat.frame = (cat.frame + 1) % 3;
+    cat.anim = 0;
+  } else if (!cat.onGround) {
+    cat.frame = cat.vy < 0 ? 3 : 4;
+  }
+
+  // Apparitions
+  if (game.wallDelay > 0) {
+    game.wallDelay -= dt;
+    if (game.wallDelay <= 0) spawnWall();
+  }
+  if (game.mode === "run") {
+    game.nextObs -= dt;
+    game.nextBrick -= dt;
+    if (game.nextObs <= 0) {
+      spawnObstacle();
+      game.nextObs = 1.05 + Math.random() * 1.15;
+    }
+    if (game.nextBrick <= 0) spawnBrick();
+  } else {
+    game.bossTimer -= dt;
+    boss.flash = Math.max(0, boss.flash - dt);
+    if (game.bossTimer <= 0) {
+      spawnObstacle(true);
+      game.bossTimer = 1.05 + Math.random() * 0.55;
+    }
+  }
+
+  // Croquettes : on les attrape en sautant dedans
+  for (let index = bricks.length - 1; index >= 0; index -= 1) {
+    const brick = bricks[index];
+    brick.x -= game.speed * dt;
+    brick.bump = Math.max(0, brick.bump - dt);
+    const touching =
+      cat.x + cat.w - 22 > brick.x && cat.x + 22 < brick.x + brick.w && cat.y + cat.h - 12 > brick.y && cat.y + 12 < brick.y + brick.h;
+    if (!brick.hit && touching) {
+      brick.hit = true;
+      brick.bump = 0.18;
+      addKibble(brick.x + brick.w / 2, brick.y);
+      burst(brick.x + brick.w / 2, brick.y, "#f6c753", 8);
+    }
+    if (brick.x + brick.w < 0) bricks.splice(index, 1);
+  }
+
+  // Obstacles : ceux lancés par Pucci rapportent une croquette s'ils sont évités
+  for (let index = obstacles.length - 1; index >= 0; index -= 1) {
+    const obstacle = obstacles[index];
+    obstacle.x += (obstacle.fromBoss ? obstacle.v : -game.speed) * dt;
+    if (obstacle.fromBoss && !obstacle.passed && obstacle.x + obstacle.w < cat.x) {
+      obstacle.passed = true;
+      addKibble(cat.x + cat.w / 2, cat.y);
+    }
+    if (obstacle.x + obstacle.w < -30) {
+      obstacles.splice(index, 1);
+      continue;
+    }
+    if (hit(cat, obstacle)) {
+      gameOver();
+      return;
+    }
+  }
+
+  // Tirs
+  for (let index = shots.length - 1; index >= 0; index -= 1) {
+    const shot = shots[index];
+    shot.x += shot.v * dt;
+    burst(shot.x, shot.y + 8, "#ffe369", 1);
+    if (game.mode === "boss" && shot.x + shot.w >= boss.x + 25) {
+      shots.splice(index, 1);
+      boss.hp -= 1;
+      boss.flash = 0.3;
+      if (boss.hp > 0) bossExplosion(3 - boss.hp);
+      else win();
+      continue;
+    }
+    for (let other = obstacles.length - 1; other >= 0; other -= 1) {
+      if (!hit(shot, obstacles[other])) continue;
+      const target = obstacles[other];
+      burst(target.x + target.w / 2, target.y + target.h / 2, "#ffd65a", target.type === "wall" ? 38 : 18);
+      if (target.type === "wall") playSfx("wall");
+      obstacles.splice(other, 1);
+      shots.splice(index, 1);
+      break;
+    }
+    if (shot.x > SPAWN_X + 80 && shots[index] === shot) shots.splice(index, 1);
+  }
+  updateParticles(dt);
+  hud();
+}
+
+function loop(timestamp) {
+  const dt = Math.min(0.032, (timestamp - last) / 1000 || 0);
+  last = timestamp;
+  update(dt);
+  game.shake *= Math.exp(-9 * dt);
+  world3d?.render(game, timestamp, dt);
+  requestAnimationFrame(loop);
+}
+
+// ---------------------------------------------------------------------------
+// Sons
+// ---------------------------------------------------------------------------
+
+const tracks = { run: new Audio("assets/audio/run-loop.mp3"), boss: new Audio("assets/audio/boss-loop.mp3") };
+Object.values(tracks).forEach((track) => {
+  track.loop = true;
+  track.preload = "auto";
+  track.load();
+});
+tracks.run.volume = 0.42;
+tracks.boss.volume = 0.55;
+let activeTrack = null;
+const sfx = {
+  pickup: "assets/audio/pickup.mp3",
+  shot: "assets/audio/shot.mp3",
+  collision: "assets/audio/collision.mp3",
+  wall: "assets/audio/wall-break.mp3",
+};
+
+function playSfx(name, volume = 0.75) {
+  if (!sound) return;
+  const audio = new Audio(sfx[name]);
+  audio.volume = volume;
+  audio.play().catch(() => {});
+}
+
+function startMusic(kind) {
+  stopMusic();
+  if (!sound || !tracks[kind]) return;
+  activeTrack = tracks[kind];
+  activeTrack.currentTime = 0;
+  activeTrack.play().catch(() => {});
+}
+
+function stopMusic() {
+  if (!activeTrack) return;
+  activeTrack.pause();
+  activeTrack = null;
+}
+
+function painMeow() {
+  if (!sound) return;
+  const audio = new Audio("assets/audio/pucci-meow.mp3");
+  audio.volume = 1;
+  audio.playbackRate = 0.68;
+  audio.play().catch(() => {});
+  const fade = setInterval(() => {
+    audio.volume = Math.max(0, audio.volume - 0.08);
+    if (audio.volume <= 0.02 || audio.ended) {
+      clearInterval(fade);
+      audio.pause();
+    }
+  }, 150);
+}
+
+function beep(frequency, duration) {
+  if (!sound) return;
+  try {
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.04, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration);
+  } catch {
+    // Pas de son disponible : le jeu continue.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Plein écran et commandes
+// ---------------------------------------------------------------------------
+
+function leavePseudoFullscreen() {
+  $(".shell").classList.remove("pseudo-fullscreen");
+  document.body.classList.remove("mobile-fullscreen");
+  ui.fullscreen.textContent = "⛶";
+  resize();
+}
+
+async function toggleFullscreen() {
+  const shell = $(".shell");
+  const mobile = matchMedia("(pointer:coarse)").matches || innerWidth < 800;
+  if (shell.classList.contains("pseudo-fullscreen")) {
+    leavePseudoFullscreen();
+    return;
+  }
+  if (mobile) {
+    shell.classList.add("pseudo-fullscreen");
+    document.body.classList.add("mobile-fullscreen");
+    ui.fullscreen.textContent = "✕";
+    scrollTo(0, 0);
+    resize();
+    return;
+  }
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else if (shell.requestFullscreen) await shell.requestFullscreen();
+    else {
+      shell.classList.add("pseudo-fullscreen");
+      ui.fullscreen.textContent = "✕";
+    }
+  } catch {
+    shell.classList.add("pseudo-fullscreen");
+    ui.fullscreen.textContent = "✕";
+  }
+  resize();
+}
+
+function resize() {
+  const bounds = canvas.getBoundingClientRect();
+  world3d?.resize(bounds.width, bounds.height, Math.min(window.devicePixelRatio || 1, 2));
+}
+
+ui.cinematic.addEventListener("ended", () => {
+  game.mode = "won";
+  show("", "", "", "REJOUER");
+});
+
+ui.action.onclick = () => {
+  sound = true;
+  ui.sound.textContent = "🔊";
+  if (game.mode === "paused") resume();
+  else if (game.mode === "over") continueRun();
+  else reset();
+};
+ui.jump.onclick = jump;
+ui.fire.onclick = fire;
+ui.pause.onclick = () => (game.mode === "paused" ? resume() : pause());
+ui.sound.onclick = () => {
+  sound = !sound;
+  ui.sound.textContent = sound ? "🔊" : "🔇";
+  if (sound) startMusic(game.mode === "boss" ? "boss" : "run");
+  else stopMusic();
+};
+ui.fullscreen.onclick = toggleFullscreen;
+document.addEventListener("fullscreenchange", () => {
+  ui.fullscreen.textContent = document.fullscreenElement ? "✕" : "⛶";
+  resize();
+});
+canvas.addEventListener("pointerdown", jump);
+addEventListener("keydown", (event) => {
+  if (["Space", "ArrowUp"].includes(event.code)) {
+    event.preventDefault();
+    jump();
+  }
+  if (event.code === "KeyF") fire();
+  if (event.code === "KeyP") (game.mode === "paused" ? resume : pause)();
+  if (event.code === "KeyM") ui.sound.click();
+  if (event.code === "KeyX") ui.fullscreen.click();
+  if (event.code === "Escape") leavePseudoFullscreen();
+});
+addEventListener("resize", resize);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) pause();
+});
+
+// ---------------------------------------------------------------------------
+// Démarrage
+// ---------------------------------------------------------------------------
+
+try {
+  world3d = createRunWorld({
+    canvas,
+    world: { W, H, GROUND },
+    hud: { boss: ui.bossHud, bossBars: [...ui.bossHud.querySelectorAll("i")], banner: ui.bossBanner },
+  });
+} catch (error) {
+  console.error(error);
+  show("3D INDISPONIBLE", "Oups…", "Ton navigateur ne peut pas afficher la 3D (WebGL). Essaie avec Chrome, Safari ou Firefox à jour.", "RÉESSAYER");
+  ui.action.onclick = () => window.location.reload();
+}
+if ("ResizeObserver" in window) new ResizeObserver(resize).observe(canvas);
+resize();
+hud();
+requestAnimationFrame(loop);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=3d1").catch(() => {});
+
+// Mode test (ajouter ?debug à l'adresse) : accès à l'état du jeu dans la console.
+if (new URLSearchParams(location.search).has("debug")) {
+  window.kichtaRun = { game, reset, update, jump, fire, enterBoss, continueRun, spawnWall, spawnBrick, spawnObstacle };
+}

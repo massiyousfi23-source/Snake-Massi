@@ -1,5 +1,5 @@
-const CACHE='kichta-run-v10';
-const FILES=['./','index.html','styles.css','bonus.css','ui.css','game.js?v=9','manifest.webmanifest','icon.svg','assets/alley-panorama.webp','assets/pucci-boss.webp','assets/audio/run-loop.mp3','assets/audio/boss-loop.mp3','assets/audio/collision.mp3','assets/audio/pickup.mp3','assets/audio/pucci-meow.mp3','assets/audio/shot.mp3','assets/audio/wall-break.mp3',...Array.from({length:6},(_,i)=>`assets/kichta/run-${i}.webp`)];
+const CACHE='kichta-run-3d-v1';
+const FILES=['./','index.html','styles.css?v=3d1','bonus.css?v=3d1','ui.css?v=3d1','game.js?v=3d1','run3d.js?v=3d1','cats.js?v=3d1','../vendor/three.core.min.js','../vendor/three.module.min.js','manifest.webmanifest','icon.svg','assets/audio/run-loop.mp3','assets/audio/boss-loop.mp3','assets/audio/collision.mp3','assets/audio/pickup.mp3','assets/audio/pucci-meow.mp3','assets/audio/shot.mp3','assets/audio/wall-break.mp3'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 // Les vidéos passent directement par le réseau : Safari (iPhone) les demande
