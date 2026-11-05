@@ -6,7 +6,7 @@
 //   blanches, collier rose avec une médaille ronde noire.
 // Les modèles regardent vers +Z ; on les tourne dans la scène.
 import * as THREE from "../vendor/three.module.min.js";
-import { addFur } from "./furshell.js?v=3d2";
+import { addFur } from "./furshell.js?v=3d3";
 
 // Matériaux physiques (lumière réaliste) ; furry = la pièce reçoit de la fourrure.
 export function toon(color, options = {}) {

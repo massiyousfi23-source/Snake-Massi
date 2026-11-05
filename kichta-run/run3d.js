@@ -3,8 +3,8 @@
 // x (vers la droite) devient la profondeur devant Kichta (-Z), y (vers le bas)
 // devient la hauteur. 100 pixels = 1 unité 3D.
 import * as THREE from "../vendor/three.module.min.js";
-import { animateCat, createCat, toon } from "./cats.js?v=3d2";
-import { setFurQuality } from "./furshell.js?v=3d2";
+import { animateCat, createCat, toon } from "./cats.js?v=3d3";
+import { setFurQuality } from "./furshell.js?v=3d3";
 import { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment } from "../vendor/three.addons.min.js";
 
 const U = 100;

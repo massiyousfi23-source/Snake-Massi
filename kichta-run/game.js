@@ -2,8 +2,8 @@
 // Le rendu 3D est dans run3d.js ; les chats sont dans cats.js.
 // Les positions restent en pixels comme dans la version 2D :
 // x = distance le long de la ruelle, y = hauteur (vers le bas).
-import { createRunWorld } from "./run3d.js?v=3d2";
-import * as Sfx from "./sfx.js?v=3d2";
+import { createRunWorld } from "./run3d.js?v=3d3";
+import * as Sfx from "./sfx.js?v=3d3";
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#game");
@@ -422,7 +422,10 @@ function update(dt) {
       boss.hp -= 1;
       boss.flash = 0.3;
       if (boss.hp > 0) bossExplosion(3 - boss.hp);
-      else win();
+      else {
+        win();
+        return;
+      }
       continue;
     }
     for (let other = obstacles.length - 1; other >= 0; other -= 1) {

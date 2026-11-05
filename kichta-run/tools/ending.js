@@ -2,7 +2,7 @@
 // Kichta fête sa victoire au milieu d'une pluie de croquettes.
 import * as THREE from "../../vendor/three.module.min.js";
 import { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment } from "../../vendor/three.addons.min.js";
-import { animateCat, createCat } from "../cats.js?v=3d2";
+import { animateCat, createCat } from "../cats.js?v=3d3";
 
 const W = 1280;
 const H = 720;
