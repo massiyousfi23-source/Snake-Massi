@@ -3,22 +3,24 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101511"><meta name="description" content="Kichta Run — le mini-jeu de course du chat Kichta.">
-  <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="bonus.css"><link rel="stylesheet" href="ui.css">
+  <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css?v=3d1"><link rel="stylesheet" href="bonus.css?v=3d1"><link rel="stylesheet" href="ui.css?v=3d1"><link rel="modulepreload" href="../vendor/three.core.min.js"><link rel="modulepreload" href="../vendor/three.module.min.js">
   <title>Kichta Run</title>
 </head>
 <body>
   <main class="shell">
     <header><div class="brand"><span class="logo">K</span><div><h1>KICHTA RUN</h1><p>COURS · SAUTE · RONRONNE</p></div></div><div class="header-actions"><button id="fullscreen" aria-label="Afficher le jeu en plein écran">⛶</button><button id="sound" aria-label="Activer ou couper le son">🔊</button></div></header>
-    <section class="stats"><div><small>SCORE</small><strong id="score">00000</strong></div><div><small>CROQUETTES</small><strong id="kibble">0 / 10</strong></div><div><small id="third-label">VITESSE</small><strong id="speed">1.0×</strong></div></section>
+    <section class="stats"><div><small>SCORE</small><strong id="score">00000</strong></div><div><small>CROQUETTES</small><strong id="kibble">0 / 3 · 🔫 0</strong></div><div><small id="third-label">VITESSE</small><strong id="speed">1.0×</strong></div></section>
     <section class="game-wrap">
-      <canvas id="game" width="960" height="430" aria-label="Jeu Kichta Run"></canvas>
+      <canvas id="game" width="960" height="540" aria-label="Jeu Kichta Run en 3D : Kichta court dans la ruelle, vue de derrière"></canvas>
+      <div class="boss-hud" id="bossHud" hidden><span>PUCCI · 3 MISSILES</span><b><i></i><i></i><i></i></b></div>
+      <div class="boss-banner" id="bossBanner" hidden><strong>BOSS FINAL : PUCCI</strong><span>Trois missiles sont nécessaires pour la vaincre !</span></div>
       <video id="cinematic" class="cinematic hidden" preload="auto" playsinline aria-label="Cinématique finale de Kichta">
-        <source src="assets/kichta-ending.mp4" type="video/mp4">
+        <source src="assets/kichta-ending.mp4?v=fete" type="video/mp4">
       </video>
-      <div class="overlay" id="overlay"><span class="eyebrow">PRÊT POUR LA COURSE ?</span><h2 id="title">Aide Kichta à éviter les obstacles</h2><p id="message">Touche l’écran, clique ou appuie sur Espace pour sauter.</p><button id="action">JOUER</button></div>
+      <div class="overlay" id="overlay"><span class="eyebrow">PRÊT POUR LA COURSE ?</span><h2 id="title">Cours avec Kichta dans la ruelle</h2><p id="message">Touche l’écran, clique ou appuie sur Espace pour sauter. Attrape les croquettes pour charger ton arme, puis affronte Pucci.</p><button id="action">JOUER</button></div>
     </section>
     <div class="controls"><button id="jump">↑ <span>SAUTER</span></button><button id="fire" disabled>✦ <span>ARME 0/3</span></button><button id="pause">Ⅱ <span>PAUSE</span></button></div>
-    <p class="hint">Espace / ↑ : sauter · F : tirer · P : pause</p>
+    <p class="hint">Espace / ↑ : sauter · F : tirer · P : pause · X : plein écran</p>
   </main>
-  <script src="game.js?v=9"></script>
+  <script type="module" src="game.js?v=3d3"></script>
 </body></html>

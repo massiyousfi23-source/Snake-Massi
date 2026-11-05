@@ -4,6 +4,6 @@
   "private": true,
   "description": "Jeu Snake mobile et installable, hébergé sur GitHub Pages.",
   "scripts": {
-    "check": "node --check game.js && node --check sw.js"
+    "check": "node --check game.js && node --check snake3d.js && node --check sw.js"
   }
 }

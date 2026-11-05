@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Kichta Run — cinématique de fin</title>
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #wrap{position:relative;width:1280px;height:720px}
+  #scene{display:block;width:1280px;height:720px}
+  #title{position:absolute;left:50%;top:7%;transform:translate(-50%,0);opacity:0;
+    font:900 78px/1 "Arial Black",Impact,sans-serif;color:#ffd24a;letter-spacing:2px;white-space:nowrap;
+    text-shadow:0 5px 0 #b3471b,0 0 30px rgba(255,170,60,.8),0 10px 24px rgba(0,0,0,.6)}
+  #title small{display:block;text-align:center;font-size:30px;color:#fff;margin-top:12px;text-shadow:0 3px 0 #7a2c10,0 6px 14px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="scene" width="1280" height="720"></canvas>
+<div id="title">BRAVO KICHTA !<small>Pucci est vaincue — à toi les croquettes !</small></div></div>
+<script type="module" src="./ending.js"></script>
+</body>
+</html>

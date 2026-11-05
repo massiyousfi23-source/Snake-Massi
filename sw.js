@@ -1,9 +1,12 @@
-const CACHE_NAME = "snake-massi-v6";
+const CACHE_NAME = "snake-massi-3d-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./game.js?v=6",
+  "./styles.css?v=3d1",
+  "./game.js?v=3d1",
+  "./snake3d.js?v=3d1",
+  "./vendor/three.core.min.js",
+  "./vendor/three.module.min.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
@@ -35,6 +38,8 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+  // Vidéos et demandes par morceaux : directement au réseau (lecture sur iPhone).
+  if (event.request.headers.has("range") || requestUrl.pathname.endsWith(".mp4")) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(

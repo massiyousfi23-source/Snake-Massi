@@ -9,3 +9,19 @@
 .shell:fullscreen .controls,.shell.pseudo-fullscreen .controls{display:flex;position:relative;z-index:1010;margin:8px auto 0;width:min(100%,720px)}
 body.mobile-fullscreen{overflow:hidden;position:fixed;inset:0;width:100%}
 @media(max-width:700px){.shell:fullscreen,.shell.pseudo-fullscreen{padding:4px;justify-content:center}.shell:fullscreen header,.shell.pseudo-fullscreen header{display:flex;position:absolute;top:max(5px,env(safe-area-inset-top));right:max(5px,env(safe-area-inset-right));z-index:1020;margin:0}.shell:fullscreen header .brand,.shell.pseudo-fullscreen header .brand{display:none}.shell:fullscreen .header-actions,.shell.pseudo-fullscreen .header-actions{gap:5px}.shell:fullscreen .header-actions button,.shell.pseudo-fullscreen .header-actions button{width:40px;height:40px;background:#0e1710dd}.shell:fullscreen .stats,.shell.pseudo-fullscreen .stats{position:absolute;top:max(5px,env(safe-area-inset-top));left:max(5px,env(safe-area-inset-left));right:100px;z-index:1015;margin:0;gap:4px}.shell:fullscreen .stats div,.shell.pseudo-fullscreen .stats div{padding:5px 7px;background:#0e1710dd}.shell:fullscreen .stats small,.shell.pseudo-fullscreen .stats small{font-size:7px}.shell:fullscreen .stats strong,.shell.pseudo-fullscreen .stats strong{font-size:13px}.shell:fullscreen .game-wrap,.shell.pseudo-fullscreen .game-wrap{width:100vw;max-height:calc(100dvh - 82px);border-radius:0}.shell:fullscreen canvas,.shell.pseudo-fullscreen canvas{width:100vw;max-height:calc(100dvh - 82px);object-fit:contain}.shell:fullscreen .controls,.shell.pseudo-fullscreen .controls{position:absolute;left:5px;right:5px;bottom:max(5px,env(safe-area-inset-bottom));width:auto;margin:0;gap:6px}.shell:fullscreen .controls button,.shell.pseudo-fullscreen .controls button{padding:10px 5px;background:#111b13e8}.shell:fullscreen .hint,.shell.pseudo-fullscreen .hint{display:none}}
+
+/* ---------- Version 3D ---------- */
+canvas{aspect-ratio:16/9;height:auto}
+@media(max-width:560px){canvas{aspect-ratio:4/5;max-height:62vh;max-height:62dvh}}
+@media(max-width:560px) and (max-height:700px){canvas{aspect-ratio:1/1}}
+.shell:fullscreen canvas,.shell.pseudo-fullscreen canvas{width:100%;height:calc(100vh - 210px);height:calc(100dvh - 210px);max-height:none;aspect-ratio:auto}
+@media(max-width:700px){.shell:fullscreen canvas,.shell.pseudo-fullscreen canvas{width:100vw;height:calc(100dvh - 82px)}}
+.boss-hud{position:absolute;top:12px;right:12px;z-index:2;display:grid;gap:6px;padding:10px 14px;border:1px solid #6e4a86;border-radius:14px;background:#22142ecc;color:#fff;font-size:12px;font-weight:900;letter-spacing:.12em;pointer-events:none}
+.boss-hud b{display:flex;gap:6px}
+.boss-hud i{display:block;width:38px;height:8px;border-radius:4px;background:#8dff68;box-shadow:0 0 10px #8dff6888;transition:background .2s}
+.boss-hud i.is-empty{background:#492d43;box-shadow:none}
+.boss-banner{position:absolute;left:50%;top:22%;z-index:2;display:grid;gap:6px;width:min(90%,520px);padding:16px 20px;border-radius:16px;background:#342641e0;text-align:center;transform:translateX(-50%);pointer-events:none}
+.boss-banner strong{font-size:clamp(20px,4.5vw,30px);font-weight:900;color:#fff}
+.boss-banner span{font-size:13px;font-weight:800;color:#ffe56e}
+@media(max-width:560px){.boss-hud{top:8px;right:8px;padding:7px 10px;font-size:10px}.boss-hud i{width:28px}}
+.boss-hud[hidden],.boss-banner[hidden]{display:none}
