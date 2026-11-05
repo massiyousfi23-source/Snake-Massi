@@ -12,3 +12,7 @@ https://kenney.nl/assets/music-jingles
 
 Meow.ogg — Wikimedia Commons
 https://commons.wikimedia.org/wiki/File:Meow.ogg
+
+Effets sonores (saut, atterrissage, croquettes, tirs, murs, chocs, boss, pas, clic)
+Kenney — Starter Kits (3D Platformer, FPS, Racing, City Builder) — licence MIT
+https://github.com/KenneyNL

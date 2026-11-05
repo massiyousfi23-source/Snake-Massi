@@ -6,28 +6,18 @@
 //   blanches, collier rose avec une médaille ronde noire.
 // Les modèles regardent vers +Z ; on les tourne dans la scène.
 import * as THREE from "../vendor/three.module.min.js";
+import { addFur } from "./furshell.js?v=3d2";
 
-const gradientMap = (() => {
-  const data = new Uint8Array([92, 92, 92, 255, 178, 178, 178, 255, 255, 255, 255, 255]);
-  const texture = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
-  texture.minFilter = THREE.NearestFilter;
-  texture.magFilter = THREE.NearestFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  return texture;
-})();
-
+// Matériaux physiques (lumière réaliste) ; furry = la pièce reçoit de la fourrure.
 export function toon(color, options = {}) {
-  return new THREE.MeshToonMaterial({ color, gradientMap, ...options });
+  const { furry, ...rest } = options;
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, ...rest });
+  if (furry) material.userData.fur = true;
+  return material;
 }
 
-const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x15101c, side: THREE.BackSide });
-
-function outline(mesh, scale) {
-  const shell = new THREE.Mesh(mesh.geometry, OUTLINE);
-  shell.scale.setScalar(scale);
-  shell.userData.isOutline = true;
-  mesh.add(shell);
+// Plus de contour noir façon dessin animé : la fourrure dessine la silhouette.
+function outline(mesh) {
   return mesh;
 }
 
@@ -256,23 +246,26 @@ const LOOKS = {
 
 // ---------------------------------------------------------------------------
 
-export function createCat(kind) {
+export function createCat(kind, { fur = 8 } = {}) {
   const look = LOOKS[kind];
   const root = new THREE.Group();
   const rig = new THREE.Group();
   root.add(rig);
 
-  const bodyMaterial = toon(0xffffff, { map: look.body() });
-  const headMaterial = toon(0xffffff, { map: look.head() });
-  const legMaterial = toon(0xffffff, { map: legTexture(kind) });
-  const chestMaterial = toon(look.chest);
-  const hipMaterial = toon(look.hip);
-  const muzzleMaterial = toon(look.muzzle);
-  const pawMaterial = toon(look.paw);
-  const earOuterMaterial = toon(look.earOuter);
-  const earInnerMaterial = toon(look.earInner);
-  const noseMaterial = toon(look.nose);
-  const eyeMaterial = toon(look.eye, { emissive: new THREE.Color(look.eye), emissiveIntensity: 0.18 });
+  const bodyMaterial = toon(0xffffff, { map: look.body(), furry: true });
+  const headMaterial = toon(0xffffff, { map: look.head(), furry: true });
+  const legMaterial = toon(0xffffff, { map: legTexture(kind), furry: true });
+  const chestMaterial = toon(look.chest, { furry: true });
+  const hipMaterial = toon(look.hip, { furry: true });
+  const muzzleMaterial = toon(look.muzzle, { furry: true });
+  const pawMaterial = toon(look.paw, { furry: true });
+  const earOuterMaterial = toon(look.earOuter, { furry: true });
+  const earInnerMaterial = toon(look.earInner, { roughness: 0.6 });
+  const noseMaterial = toon(look.nose, { roughness: 0.35 });
+  const eyeMaterial = new THREE.MeshPhysicalMaterial({
+    color: look.eye, emissive: new THREE.Color(look.eye), emissiveIntensity: 0.12,
+    roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.03,
+  });
   const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x07060a });
   const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const darkMaterial = toon(0x141218);
@@ -376,13 +369,14 @@ export function createCat(kind) {
     }
     const radius = (kind === "pucci" ? 0.04 : 0.033) - index * 0.0015;
     const color = index >= count - 2 ? look.tailTip : look.tail[index % 2];
-    segment.add(part(GEO.small, toon(color), [radius, radius, 0.05], [0, 0, -0.03]));
+    segment.add(part(GEO.small, toon(color, { furry: true }), [radius, radius, 0.05], [0, 0, -0.03]));
     tail.push(segment);
     parent = segment;
   }
 
   root.scale.setScalar(look.scale);
   root.userData = { rig, torso, head, legs, tail, kind, flashMaterials: [bodyMaterial, headMaterial] };
+  if (fur > 0) addFur(root, { layers: fur, length: kind === "pucci" ? 0.017 : 0.013, density: kind === "pucci" ? 60 : 75 });
   return root;
 }
 

@@ -3,7 +3,9 @@
 // x (vers la droite) devient la profondeur devant Kichta (-Z), y (vers le bas)
 // devient la hauteur. 100 pixels = 1 unité 3D.
 import * as THREE from "../vendor/three.module.min.js";
-import { animateCat, createCat, toon } from "./cats.js?v=3d1";
+import { animateCat, createCat, toon } from "./cats.js?v=3d2";
+import { setFurQuality } from "./furshell.js?v=3d2";
+import { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment } from "../vendor/three.addons.min.js";
 
 const U = 100;
 
@@ -44,7 +46,13 @@ function cobbleTexture() {
 }
 
 function facadeTexture(base, seed) {
-  return canvasTexture(256, 512, (g, w, h) => {
+  const glowCanvas = document.createElement("canvas");
+  glowCanvas.width = 256;
+  glowCanvas.height = 512;
+  const glow = glowCanvas.getContext("2d");
+  glow.fillStyle = "#000";
+  glow.fillRect(0, 0, 256, 512);
+  const texture = canvasTexture(256, 512, (g, w, h) => {
     g.fillStyle = base;
     g.fillRect(0, 0, w, h);
     // Briques discrètes
@@ -66,6 +74,13 @@ function facadeTexture(base, seed) {
         g.fillRect(x - 4, y - 4, 52, 62);
         g.fillStyle = lit ? (next() > 0.5 ? "#ffd27a" : "#ffb35c") : "#2b3550";
         g.fillRect(x, y, 44, 54);
+        if (lit) {
+          glow.fillStyle = g.fillStyle;
+          glow.fillRect(x, y, 44, 54);
+          glow.fillStyle = "rgba(0,0,0,.6)";
+          glow.fillRect(x + 20, y, 4, 54);
+          glow.fillRect(x, y + 25, 44, 4);
+        }
         g.fillStyle = "rgba(0,0,0,.35)";
         g.fillRect(x + 20, y, 4, 54);
         g.fillRect(x, y + 25, 44, 4);
@@ -87,6 +102,10 @@ function facadeTexture(base, seed) {
       }
     }
   });
+  const glowTexture = new THREE.CanvasTexture(glowCanvas);
+  glowTexture.colorSpace = THREE.SRGBColorSpace;
+  texture.userData.glow = glowTexture;
+  return texture;
 }
 
 function signTexture(text, color) {
@@ -210,7 +229,7 @@ const OBSTACLES = {
   },
   wall: () => {
     const g = new THREE.Group();
-    const face = new THREE.MeshToonMaterial({ map: sharedWallTexture });
+    const face = new THREE.MeshStandardMaterial({ map: sharedWallTexture, roughness: 0.9 });
     const side = toon(0x7d5238);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.58, 0.82), [side, side, side, side, face, face]);
     mesh.position.y = 0.79;
@@ -228,6 +247,8 @@ export function createRunWorld({ canvas, world, hud }) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.92;
 
   const scene = new THREE.Scene();
   const nightColor = new THREE.Color(0x141a33);
@@ -235,6 +256,17 @@ export function createRunWorld({ canvas, world, hud }) {
   scene.background = nightColor.clone();
   scene.fog = new THREE.Fog(nightColor.clone(), 11, 30);
   const camera = new THREE.PerspectiveCamera(58, 16 / 9, 0.1, 80);
+  // Reflets doux : environnement d'intérieur pré-calculé, très atténué la nuit
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.22;
+  // Halo lumineux autour des lampes, fenêtres, enseignes et tirs
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(960, 540), 0.42, 0.4, 0.92);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  let bloomOn = true;
 
   // Lumières de nuit
   const hemisphere = new THREE.HemisphereLight(0x8ea4ff, 0x2a2030, 1.5);
@@ -251,7 +283,7 @@ export function createRunWorld({ canvas, world, hud }) {
   scene.add(catGlow);
 
   // Lune et étoiles au bout de la ruelle
-  const moon = new THREE.Mesh(new THREE.SphereGeometry(3, 32, 20), new THREE.MeshBasicMaterial({ color: 0xfff2c4, fog: false }));
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(3, 32, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff2c4).multiplyScalar(1.3), fog: false }));
   moon.position.set(-4, 13, -60);
   scene.add(moon);
   const halo = new THREE.Mesh(
@@ -273,7 +305,8 @@ export function createRunWorld({ canvas, world, hud }) {
   // Route pavée qui défile
   const cobble = cobbleTexture();
   cobble.repeat.set(2, 30);
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 48), new THREE.MeshToonMaterial({ map: cobble }));
+  // Pavés mouillés : rugosité faible pour refléter les lumières
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 48), new THREE.MeshStandardMaterial({ map: cobble, roughness: 0.34, metalness: 0.2 }));
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0, -18);
   road.receiveShadow = true;
@@ -305,9 +338,11 @@ export function createRunWorld({ canvas, world, hud }) {
     const height = 4 + Math.random() * 6;
     building.mesh.scale.set(3, height, depth);
     building.mesh.position.y = height / 2;
-    building.mesh.material[4].map = facades[Math.floor(Math.random() * facades.length)];
-    building.mesh.material[0].map = building.mesh.material[4].map;
-    building.mesh.material[1].map = building.mesh.material[4].map;
+    const facade = facades[Math.floor(Math.random() * facades.length)];
+    for (const i of [0, 1, 4, 5]) {
+      building.mesh.material[i].map = facade;
+      building.mesh.material[i].emissiveMap = facade.userData.glow;
+    }
     building.track = buildingCursor[side] + depth / 2;
     building.depth = depth;
     buildingCursor[side] += depth + 0.15;
@@ -320,12 +355,12 @@ export function createRunWorld({ canvas, world, hud }) {
   }
   for (const side of ["left", "right"]) {
     for (let index = 0; index < 13; index += 1) {
-      const material = new THREE.MeshToonMaterial({ color: 0xffffff });
+      const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, emissive: 0xffffff, emissiveIntensity: 0.75 });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), [material, material, toon(0x221c2a), toon(0x221c2a), material, material]);
       mesh.receiveShadow = true;
       const group = new THREE.Group();
       group.add(mesh);
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.6, 1.6) }));
       sign.rotation.y = side === "left" ? Math.PI / 2 : -Math.PI / 2;
       sign.position.x = side === "left" ? 1.52 : -1.52;
       group.add(sign);
@@ -340,7 +375,7 @@ export function createRunWorld({ canvas, world, hud }) {
   // Lampadaires
   const lamps = [];
   const poleMaterial = toon(0x2a2633);
-  const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xffe2a0 });
+  const bulbMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe2a0).multiplyScalar(2.5) });
   const coneMaterial = new THREE.MeshBasicMaterial({
     color: 0xffd58a,
     transparent: true,
@@ -378,12 +413,12 @@ export function createRunWorld({ canvas, world, hud }) {
   // Obstacles, croquettes et tirs
   const obstacleMeshes = new Map();
   const kibbleGeometry = new THREE.OctahedronGeometry(0.16, 0);
-  const kibbleMaterial = toon(0xd98b43, { emissive: new THREE.Color(0xa0521f), emissiveIntensity: 0.4 });
+  const kibbleMaterial = new THREE.MeshStandardMaterial({ color: 0xd98b43, roughness: 0.42, metalness: 0.1, emissive: 0xffa040, emissiveIntensity: 0.55 });
   const brickMeshes = new Map();
   const shotMeshes = new Map();
   const shotGeometry = new THREE.ConeGeometry(0.1, 0.45, 10).rotateX(-Math.PI / 2);
-  const shotMaterial = new THREE.MeshBasicMaterial({ color: 0xffe051 });
-  const bossShotMaterial = new THREE.MeshBasicMaterial({ color: 0xff694f });
+  const shotMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe051).multiplyScalar(3) });
+  const bossShotMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff694f).multiplyScalar(3) });
 
   // Particules
   const dustMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), 500);
@@ -419,6 +454,43 @@ export function createRunWorld({ canvas, world, hud }) {
   let lastBossThrow = -10;
   const seenBossObjects = new WeakSet();
 
+  // Pluie fine : segments qui tombent devant la caméra et brillent sous les lampes
+  const RAIN = 900;
+  const rainPositions = new Float32Array(RAIN * 6);
+  const rainSeeds = [];
+  for (let i = 0; i < RAIN; i += 1) {
+    rainSeeds.push({ x: (Math.random() - 0.5) * 9, y: Math.random() * 7, z: 3 - Math.random() * 22, v: 7 + Math.random() * 3 });
+  }
+  const rainGeometry = new THREE.BufferGeometry();
+  rainGeometry.setAttribute("position", new THREE.BufferAttribute(rainPositions, 3));
+  const rain = new THREE.LineSegments(
+    rainGeometry,
+    new THREE.LineBasicMaterial({ color: 0xb7c6ff, transparent: true, opacity: 0.32, depthWrite: false }),
+  );
+  rain.frustumCulled = false;
+  scene.add(rain);
+  function updateRain(delta, run) {
+    if (!rain.visible) return;
+    for (let i = 0; i < RAIN; i += 1) {
+      const d = rainSeeds[i];
+      d.y -= d.v * delta;
+      d.z += run * delta;
+      if (d.y < 0 || d.z > 4) {
+        d.y = 5 + Math.random() * 2;
+        d.z = 3 - Math.random() * 22;
+        d.x = (Math.random() - 0.5) * 9;
+      }
+      const j = i * 6;
+      rainPositions[j] = d.x;
+      rainPositions[j + 1] = d.y;
+      rainPositions[j + 2] = d.z;
+      rainPositions[j + 3] = d.x - 0.01;
+      rainPositions[j + 4] = d.y + 0.22;
+      rainPositions[j + 5] = d.z - run * 0.02;
+    }
+    rainGeometry.attributes.position.needsUpdate = true;
+  }
+
   // Conversions
   const catCenterX = (game) => game.cat.x + game.cat.w / 2;
   const depthOf = (game, x, width = 0) => -((x + width / 2 - catCenterX(game)) / U);
@@ -435,6 +507,18 @@ export function createRunWorld({ canvas, world, hud }) {
       quality.level += 1;
       renderer.setPixelRatio(Math.min(quality.deviceRatio, quality.ratios[quality.level]));
       renderer.setSize(viewWidth, viewHeight, false);
+      composer.setPixelRatio(Math.min(quality.deviceRatio, quality.ratios[quality.level]));
+      composer.setSize(viewWidth, viewHeight);
+      if (quality.level >= 1) {
+        setFurQuality(kichta, 2);
+        setFurQuality(pucci, 2);
+      }
+      if (quality.level >= 2) bloomOn = false;
+      if (quality.level >= 3) {
+        setFurQuality(kichta, 4);
+        setFurQuality(pucci, 4);
+        rain.visible = false;
+      }
       if (quality.level >= 2) {
         renderer.shadowMap.enabled = false;
         scene.traverse((object) => {
@@ -452,6 +536,8 @@ export function createRunWorld({ canvas, world, hud }) {
     quality.deviceRatio = pixelRatio;
     renderer.setPixelRatio(Math.min(pixelRatio, quality.ratios[quality.level]));
     renderer.setSize(viewWidth, viewHeight, false);
+    composer.setPixelRatio(Math.min(pixelRatio, quality.ratios[quality.level]));
+    composer.setSize(viewWidth, viewHeight);
     camera.aspect = viewWidth / viewHeight;
     camera.fov = camera.aspect < 1 ? 70 : 58;
     camera.updateProjectionMatrix();
@@ -719,7 +805,9 @@ export function createRunWorld({ canvas, world, hud }) {
     syncBoss(game, time);
     syncParticles(game, time);
     updateCamera(game, time, delta);
-    renderer.render(scene, camera);
+    updateRain(delta, game.speed / U);
+    if (bloomOn) composer.render(delta);
+    else renderer.render(scene, camera);
     if (["run", "boss"].includes(game.mode)) adaptQuality(delta);
   }
 

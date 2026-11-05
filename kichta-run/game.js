@@ -2,7 +2,8 @@
 // Le rendu 3D est dans run3d.js ; les chats sont dans cats.js.
 // Les positions restent en pixels comme dans la version 2D :
 // x = distance le long de la ruelle, y = hauteur (vers le bas).
-import { createRunWorld } from "./run3d.js?v=3d1";
+import { createRunWorld } from "./run3d.js?v=3d2";
+import * as Sfx from "./sfx.js?v=3d2";
 
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#game");
@@ -113,6 +114,7 @@ function show(tag, title, message, button) {
 }
 
 function jump() {
+  Sfx.unlock();
   if (["ready", "over", "won"].includes(game.mode)) {
     reset();
     return;
@@ -125,7 +127,7 @@ function jump() {
     cat.vy = -740;
     cat.onGround = false;
     burst(cat.x + 35, GROUND - 5, "#e9d8a0", 7);
-    beep(520, 0.05);
+    playSfx("jump", 0.55, 1.15);
   }
 }
 
@@ -134,7 +136,7 @@ function fire() {
   game.ammo -= 1;
   shots.push({ x: cat.x + 105, y: cat.y + 35, w: 44, h: 18, v: 780, boss: game.mode === "boss" });
   game.shake = 3;
-  playSfx("shot");
+  playSfx("shot", 0.42, 1.25);
   hud();
 }
 
@@ -160,7 +162,8 @@ function addKibble(x, y) {
     game.kibbleStreak = 0;
   }
   particles.push({ x, y, vx: 0, vy: -95, r: 10, a: 1.4, type: "kibble" });
-  playSfx("pickup");
+  // Plus la série de croquettes est longue, plus le son monte
+  playSfx("coin", 0.6, 1 + Math.min(game.kibbleStreak, 6) * 0.07, 0.02);
   hud();
 }
 
@@ -179,7 +182,9 @@ function gameOver() {
   game.mode = "over";
   cat.frame = 5;
   game.shake = 13;
-  playSfx("collision", 0.95);
+  playSfx("impact", 0.9);
+  playSfx("fall", 0.6, 0.9);
+  Sfx.setRunning(false);
   stopMusic();
   show(
     "FIN DE COURSE",
@@ -211,10 +216,12 @@ function bossExplosion(stage) {
   burst(x, y, stage === 3 ? "#fff2a1" : "#ff8b3d", stage === 3 ? 70 : 34);
   game.shake = stage === 3 ? 30 : 16;
   if (stage === 3) {
-    playSfx("wall");
+    playSfx("destroy", 0.85, 0.9);
+    playSfx("break", 0.8, 0.8);
     painMeow();
   } else {
-    playSfx("collision");
+    playSfx("hurt", 0.85, 0.8);
+    playSfx("impact", 0.6, 1.2);
   }
 }
 
@@ -333,7 +340,10 @@ function update(dt) {
   cat.vy += 1950 * dt;
   cat.y += cat.vy * dt;
   if (cat.y >= GROUND - cat.h) {
-    if (!cat.onGround) burst(cat.x + 35, GROUND - 4, "#eadca9", 8);
+    if (!cat.onGround) {
+      burst(cat.x + 35, GROUND - 4, "#eadca9", 8);
+      playSfx("land", 0.55);
+    }
     cat.y = GROUND - cat.h;
     cat.vy = 0;
     cat.onGround = true;
@@ -419,7 +429,8 @@ function update(dt) {
       if (!hit(shot, obstacles[other])) continue;
       const target = obstacles[other];
       burst(target.x + target.w / 2, target.y + target.h / 2, "#ffd65a", target.type === "wall" ? 38 : 18);
-      if (target.type === "wall") playSfx("wall");
+      if (target.type === "wall") playSfx("break", 0.85);
+      else playSfx("hurt", 0.5, 1.3);
       obstacles.splice(other, 1);
       shots.splice(index, 1);
       break;
@@ -431,6 +442,7 @@ function update(dt) {
 }
 
 function loop(timestamp) {
+  Sfx.setRunning(sound && cat.onGround && isPlaying(), game.speed / 360);
   const dt = Math.min(0.032, (timestamp - last) / 1000 || 0);
   last = timestamp;
   update(dt);
@@ -452,18 +464,9 @@ Object.values(tracks).forEach((track) => {
 tracks.run.volume = 0.42;
 tracks.boss.volume = 0.55;
 let activeTrack = null;
-const sfx = {
-  pickup: "assets/audio/pickup.mp3",
-  shot: "assets/audio/shot.mp3",
-  collision: "assets/audio/collision.mp3",
-  wall: "assets/audio/wall-break.mp3",
-};
-
-function playSfx(name, volume = 0.75) {
+function playSfx(name, volume = 0.7, rate = 1, vary = 0.06) {
   if (!sound) return;
-  const audio = new Audio(sfx[name]);
-  audio.volume = volume;
-  audio.play().catch(() => {});
+  Sfx.play(name, { volume, rate, vary });
 }
 
 function startMusic(kind) {
@@ -482,34 +485,7 @@ function stopMusic() {
 
 function painMeow() {
   if (!sound) return;
-  const audio = new Audio("assets/audio/pucci-meow.mp3");
-  audio.volume = 1;
-  audio.playbackRate = 0.68;
-  audio.play().catch(() => {});
-  const fade = setInterval(() => {
-    audio.volume = Math.max(0, audio.volume - 0.08);
-    if (audio.volume <= 0.02 || audio.ended) {
-      clearInterval(fade);
-      audio.pause();
-    }
-  }, 150);
-}
-
-function beep(frequency, duration) {
-  if (!sound) return;
-  try {
-    const context = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.04, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + duration);
-  } catch {
-    // Pas de son disponible : le jeu continue.
-  }
+  Sfx.play("meow", { volume: 1, rate: 0.7, vary: 0 });
 }
 
 // ---------------------------------------------------------------------------
@@ -563,7 +539,9 @@ ui.cinematic.addEventListener("ended", () => {
 });
 
 ui.action.onclick = () => {
+  Sfx.unlock();
   sound = true;
+  playSfx("click", 0.6);
   ui.sound.textContent = "🔊";
   if (game.mode === "paused") resume();
   else if (game.mode === "over") continueRun();
