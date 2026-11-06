@@ -266,3 +266,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 #shopTabs { max-width: 760px; }
 
 @keyframes bob { 50% { transform: translateY(-5px); } }
+
+#videoSound { position: absolute; z-index: 21; left: calc(14px + var(--safe-l)); bottom: calc(18px + var(--safe-b)); padding: 10px 18px; border-radius: 99px; background: rgba(255, 255, 255, .9); font-weight: 700; }
+#videoPlay { position: absolute; z-index: 22; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; }

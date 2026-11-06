@@ -3,9 +3,9 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b2";
-import { createToon, dressToon, animateToon, flashToon, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b2";
-import * as Sfx from "./sfx.js?v=b2";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b3";
+import { createToon, dressToon, animateToon, flashToon, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b3";
+import * as Sfx from "./sfx.js?v=b3";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -596,11 +596,10 @@ function endBoss(defeated) {
     Sfx.play("meow", { volume: 1, rate: 0.68, delay: 0.1 });
     // Pluie de croquettes devant Kichta
     for (let i = 0; i < 36; i += 1) addCoin(laneX(pick([-1, 0, 1])), 0.75, P.z - 25 - i * 1.6);
-    if (!save.cinematic) {
-      save.cinematic = true;
-      persist();
-      setTimeout(() => G.mode === "run" && playCinematic(true), 1600);
-    }
+    // La cinématique se joue à chaque victoire contre Pucci
+    save.cinematic = true;
+    persist();
+    setTimeout(() => G.mode === "run" && playCinematic(true), 1800);
   } else {
     banner("Pucci s'enfuit…", "Elle reviendra !");
   }
@@ -1694,7 +1693,7 @@ $("#chestOpen").onclick = openChestScreen;
 // --- Cinématique -------------------------------------------------------------------------
 const video = $("#cinematic");
 function playCinematic(fromRun = false) {
-  if (!save.cinematic) {
+  if (!save.cinematic && !fromRun) {
     toast("Bats Pucci pour débloquer la cinématique !", "near");
     return;
   }
@@ -1702,15 +1701,49 @@ function playCinematic(fromRun = false) {
   G.mode = "cinema";
   Sfx.music(null);
   Sfx.setRunning(false);
-  video.muted = !save.sound;
   video.currentTime = 0;
   video.classList.remove("hidden");
   $("#skipVideo").classList.remove("hidden");
-  video.play().catch(() => {});
   video.dataset.fromRun = fromRun ? "1" : "";
+  // Les téléphones peuvent refuser une vidéo avec le son lancée automatiquement :
+  // on essaie avec le son, puis sans le son, puis on affiche un bouton « Regarder ».
+  video.muted = !save.sound;
+  video.play().catch(() => {
+    video.muted = true;
+    video.play()
+      .then(() => save.sound && $("#videoSound").classList.remove("hidden"))
+      .catch(() => $("#videoPlay").classList.remove("hidden"));
+  });
 }
+// Au premier toucher, on « réveille » la vidéo pour que le téléphone accepte
+// de la lancer toute seule plus tard (règle de Safari sur iPhone).
+let videoPrimed = false;
+function primeVideo() {
+  if (videoPrimed) return;
+  videoPrimed = true;
+  video.preload = "auto";
+  video.muted = true;
+  video.play().then(() => {
+    video.pause();
+    video.currentTime = 0;
+  }).catch(() => {
+    videoPrimed = false;
+  });
+}
+addEventListener("pointerdown", () => G.mode !== "cinema" && primeVideo(), { passive: true });
+$("#videoSound").addEventListener("click", () => {
+  video.muted = false;
+  $("#videoSound").classList.add("hidden");
+});
+$("#videoPlay").addEventListener("click", () => {
+  video.muted = !save.sound;
+  video.play().catch(() => {});
+  $("#videoPlay").classList.add("hidden");
+});
 function endCinematic() {
   video.pause();
+  $("#videoSound").classList.add("hidden");
+  $("#videoPlay").classList.add("hidden");
   video.classList.add("hidden");
   $("#skipVideo").classList.add("hidden");
   if (video.dataset.fromRun) {
