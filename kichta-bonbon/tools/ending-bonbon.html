@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Kichta Run — cinématique de fin (bonbon)</title>
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #wrap{position:relative;width:1280px;height:720px;overflow:hidden}
+  #scene{display:block;width:1280px;height:720px}
+  #title{position:absolute;left:50%;top:6%;transform:translate(-50%,0);opacity:0;text-align:center;white-space:nowrap;
+    font:900 86px/1 "Arial Rounded MT Bold","Arial Black",sans-serif;color:#fff;letter-spacing:2px;
+    -webkit-text-stroke:5px #e0458b;paint-order:stroke fill;text-shadow:0 7px 0 #b8336f,0 12px 0 #8f2152,0 20px 34px rgba(140,30,90,.45)}
+  #title small{display:block;margin-top:14px;font-size:30px;color:#ffe066;-webkit-text-stroke:3px #c96a00;text-shadow:0 4px 0 #9e4f00}
+</style>
+<script>
+  // Hasard reproductible : la vidéo est identique à chaque rendu
+  (() => { let s = 20261106; Math.random = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+</script>
+</head>
+<body>
+<div id="wrap"><canvas id="scene" width="1280" height="720"></canvas>
+<div id="title">BRAVO KICHTA !<small>Pucci est vaincue… à toi les croquettes !</small></div></div>
+<script type="module" src="./ending-bonbon.js"></script>
+</body>
+</html>

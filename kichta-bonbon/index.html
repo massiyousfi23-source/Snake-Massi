@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#ff79b0">
+  <meta name="description" content="Kichta Run — la course la plus sucrée du monde.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="candy.css?v=b2">
+  <link rel="modulepreload" href="../vendor/three.core.min.js">
+  <link rel="modulepreload" href="../vendor/three.module.min.js">
+  <title>Kichta Run Bonbon</title>
+  <meta name="apple-mobile-web-app-title" content="Kichta Bonbon">
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" aria-label="Kichta Run : Kichta court dans un monde de bonbons"></canvas>
+
+    <!-- Pendant la course -->
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <div class="score-box"><span id="score">0</span><b id="mult">×1</b></div>
+        <div class="hud-right">
+          <div class="coin-box"><i class="coin"></i><span id="coins">0</span></div>
+          <button id="pauseBtn" class="round" aria-label="Pause">Ⅱ</button>
+        </div>
+      </div>
+      <div id="powers"></div>
+      <div id="bossBar" class="hidden"><span>😾 PUCCI</span><div><i></i><i></i><i></i></div></div>
+      <div id="toasts"></div>
+      <div id="tuto" class="hidden"></div>
+    </div>
+
+    <div id="controls" class="hidden">
+      <button id="btnLeft" aria-label="Aller à gauche">◀</button>
+      <button id="btnJump" aria-label="Sauter">▲<small>SAUTER</small></button>
+      <button id="btnRight" aria-label="Aller à droite">▶</button>
+    </div>
+
+    <!-- Menu principal -->
+    <section id="menu" class="screen">
+      <div class="top-bar">
+        <div class="pill"><i class="coin"></i><span class="coinsTotal">0</span></div>
+        <div class="pill">🏆 <span id="bestMenu">0</span></div>
+        <span class="grow"></span>
+        <button class="round" id="soundBtn" aria-label="Son">🔊</button>
+        <button class="round" id="fsBtn" aria-label="Plein écran">⛶</button>
+      </div>
+      <div class="title"><h1 class="logo"><span>KICHTA</span><em>RUN</em></h1>
+      <p class="tag">La course la plus sucrée du monde 🍭</p></div>
+      <div class="menu-bottom">
+        <button id="playBtn" class="big">JOUER</button>
+        <div class="menu-grid">
+          <button id="shopBtn"><span class="ico">🛍️</span><span>Boutique</span></button>
+          <button id="missionsBtn"><span class="ico">🎯</span><span>Missions</span><em id="levelBadge">×1</em></button>
+          <button id="chestBtn"><span class="ico">🎁</span><span>Coffre</span><em id="chestBadge" class="hidden">!</em></button>
+          <button id="cinemaBtn"><span class="ico">🎬</span><span>Cinéma</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="shop" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Boutique</h2><div class="pill"><i class="coin"></i><span class="coinsTotal">0</span></div></header>
+      <nav id="shopTabs"></nav>
+      <div id="shopGrid" class="grid"></div>
+    </section>
+
+    <section id="missions" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Missions</h2><span></span></header>
+      <div class="level-card">Niveau <b id="lvl">1</b><small>Multiplicateur de score</small><strong id="lvlMult">×1</strong></div>
+      <ul id="missionList" class="missions"></ul>
+      <p class="note">Termine les 3 missions pour monter de niveau : ton multiplicateur de score augmente, et tu gagnes des croquettes !</p>
+    </section>
+
+    <section id="chest" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Coffre du jour</h2><span></span></header>
+      <div class="chest-box">
+        <div id="chestIcon">🎁</div>
+        <p id="chestText"></p>
+        <button id="chestOpen" class="big">OUVRIR</button>
+      </div>
+    </section>
+
+    <section id="pause" class="screen dim hidden">
+      <h2>Pause</h2>
+      <button id="resumeBtn" class="big">CONTINUER</button>
+      <button id="quitBtn" class="soft">Menu</button>
+    </section>
+
+    <section id="over" class="screen dim hidden">
+      <h2 id="overTitle">Aïe !</h2>
+      <div id="newBest" class="hidden">🏆 NOUVEAU RECORD !</div>
+      <div class="result">
+        <div><small>SCORE</small><strong id="overScore">0</strong></div>
+        <div><small>RECORD</small><strong id="overBest">0</strong></div>
+        <div><small>GAGNÉ</small><strong id="overCoins">0</strong></div>
+      </div>
+      <button id="giftsBtn" class="big gifts hidden">🎁 OUVRIR TES CADEAUX <b id="giftsCount">1</b></button>
+      <button id="reviveBtn" class="big revive">CONTINUER <span class="cost"><i class="coin"></i><span id="reviveCost">50</span></span><b id="reviveTimer"></b></button>
+      <ul id="overMissions" class="missions small"></ul>
+      <div class="row">
+        <button id="menuBtn" class="soft">Menu</button>
+        <button id="againBtn" class="big">REJOUER</button>
+      </div>
+    </section>
+
+    <section id="reveal" class="screen hidden">
+      <h2 id="revealTitle">Coffre</h2>
+      <p id="revealHint">Touche l'écran pour l'ouvrir plus vite !</p>
+      <div id="revealCard" class="hidden">
+        <small id="revealRarity">Rare</small>
+        <strong id="revealName">Objet</strong>
+        <span id="revealExtra"></span>
+        <div class="row"><button id="revealOk" class="soft">Plus tard</button><button id="revealWear" class="big">PORTER</button></div>
+      </div>
+    </section>
+
+    <div id="banner" class="hidden"></div>
+    <div id="flash"></div>
+    <video id="cinematic" class="hidden" playsinline preload="none"><source src="assets/kichta-ending.mp4?v=bonbon" type="video/mp4"></video>
+    <button id="skipVideo" class="hidden">Passer ▶▶</button>
+  </div>
+  <script type="module" src="main.js?v=b2"></script>
+</body>
+</html>
