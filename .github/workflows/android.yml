@@ -1,0 +1,67 @@
+# Fabrique l'application Android (APK) de Kichta Run Bonbon à chaque mise à jour du jeu,
+# et la publie dans l'onglet « Releases » du dépôt pour la télécharger sur le téléphone.
+name: APK Android Kichta Bonbon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kichta-bonbon/**"
+      - "vendor/**"
+      - "app-android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Copier le jeu dans l'application
+        run: bash app-android/prepare-web.sh
+
+      - name: Créer le projet Android
+        working-directory: app-android
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#ff79b0' --splashBackgroundColor '#ffd6ea' || echo "Icônes par défaut"
+          npx cap sync android
+
+      - name: Compiler l'APK
+        working-directory: app-android/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Renommer l'APK
+        run: cp app-android/android/app/build/outputs/apk/debug/app-debug.apk KichtaRunBonbon.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KichtaRunBonbon-apk
+          path: KichtaRunBonbon.apk
+
+      - name: Publier dans les Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Kichta Run Bonbon pour Android (n° ${{ github.run_number }})
+          body: |
+            Application Android de Kichta Run Bonbon.
+            Sur le téléphone : télécharge KichtaRunBonbon.apk, ouvre-le, puis autorise l'installation d'applications de cette source si Android le demande.
+          files: KichtaRunBonbon.apk
+          make_latest: true

@@ -1,0 +1,9 @@
+{
+  "appId": "com.massiyousfi.kichtabonbon",
+  "appName": "Kichta Bonbon",
+  "webDir": "www",
+  "backgroundColor": "#ffd6ea",
+  "android": {
+    "backgroundColor": "#ffd6ea"
+  }
+}

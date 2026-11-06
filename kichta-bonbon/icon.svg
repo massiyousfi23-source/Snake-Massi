@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9ccf"/><stop offset="1" stop-color="#ff4f96"/></linearGradient>
+    <radialGradient id="fur" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffc27a"/><stop offset=".7" stop-color="#e08a3a"/><stop offset="1" stop-color="#b5652a"/></radialGradient>
+    <radialGradient id="eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#140d05"/><stop offset=".42" stop-color="#140d05"/><stop offset=".48" stop-color="#b8c23f"/><stop offset=".9" stop-color="#9aa52e"/><stop offset="1" stop-color="#4a3a10"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <ellipse cx="256" cy="120" rx="190" ry="60" fill="#fff" opacity=".22"/>
+  <path d="M120 230 L150 70 L235 165 Z" fill="#b5652a"/><path d="M392 230 L362 70 L277 165 Z" fill="#b5652a"/>
+  <path d="M140 200 L158 105 L210 165 Z" fill="#ffb6a0"/><path d="M372 200 L354 105 L302 165 Z" fill="#ffb6a0"/>
+  <ellipse cx="256" cy="290" rx="190" ry="170" fill="url(#fur)"/>
+  <path d="M206 165 l20 -38 l30 34 l30 -34 l20 38" fill="none" stroke="#5b2f14" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M90 270 h50 M86 305 h48 M422 270 h-50 M426 305 h-48" stroke="#5b2f14" stroke-width="12" stroke-linecap="round"/>
+  <ellipse cx="256" cy="372" rx="110" ry="78" fill="#fff3e2"/>
+  <circle cx="188" cy="268" r="52" fill="#fff"/><circle cx="324" cy="268" r="52" fill="#fff"/>
+  <circle cx="192" cy="272" r="40" fill="url(#eye)"/><circle cx="320" cy="272" r="40" fill="url(#eye)"/>
+  <circle cx="178" cy="255" r="13" fill="#fff"/><circle cx="306" cy="255" r="13" fill="#fff"/>
+  <ellipse cx="256" cy="335" rx="22" ry="15" fill="#f28c7a"/>
+  <path d="M226 362 q30 30 60 0" fill="none" stroke="#5b2f14" stroke-width="9" stroke-linecap="round"/>
+  <ellipse cx="200" cy="170" rx="60" ry="22" fill="#fff" opacity=".35" transform="rotate(-20 200 170)"/>
+</svg>
