@@ -1,7 +1,29 @@
-const CACHE='kichta-run-3d-v3';
-const FILES=['./', 'index.html', 'styles.css?v=3d1', 'bonus.css?v=3d1', 'ui.css?v=3d1', 'game.js?v=3d3', 'run3d.js?v=3d3', 'cats.js?v=3d3', 'furshell.js?v=3d3', 'sfx.js?v=3d3', '../vendor/three.core.min.js', '../vendor/three.module.min.js', '../vendor/three.addons.min.js', 'manifest.webmanifest', 'icon.svg', 'assets/audio/run-loop.mp3', 'assets/audio/boss-loop.mp3', 'assets/audio/pucci-meow.mp3', 'assets/audio/k-jump.mp3', 'assets/audio/k-land.mp3', 'assets/audio/k-coin.mp3', 'assets/audio/k-break.mp3', 'assets/audio/k-blaster.mp3', 'assets/audio/k-impact.mp3', 'assets/audio/k-hurt.mp3', 'assets/audio/k-destroy.mp3', 'assets/audio/k-steps.mp3', 'assets/audio/k-click.mp3', 'assets/audio/k-attack.mp3', 'assets/audio/k-fall.mp3'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
-// Les vidéos passent directement par le réseau : Safari (iPhone) les demande
-// par morceaux, ce qu'une réponse en cache ne sait pas fournir.
-self.addEventListener('fetch',e=>{const url=new URL(e.request.url);if(e.request.method!=='GET'||e.request.headers.has('range')||url.pathname.endsWith('.mp4'))return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
+// Mode hors ligne : le jeu se met en cache à la première visite.
+const CACHE = 'kichta-run-bonbon-b1';
+const FILES = ['./', 'index.html', 'candy.css?v=b1', 'main.js?v=b1', 'world.js?v=b1', 'toons.js?v=b1', 'sfx.js?v=b1',
+  '../vendor/three.core.min.js', '../vendor/three.module.min.js', '../vendor/three.addons.min.js',
+  'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png',
+  'assets/audio/candy-menu.mp3', 'assets/audio/candy-run.mp3', 'assets/audio/candy-boss.mp3', 'assets/audio/pucci-meow.mp3',
+  'assets/audio/k-jump.mp3', 'assets/audio/k-land.mp3', 'assets/audio/k-coin.mp3', 'assets/audio/k-break.mp3', 'assets/audio/k-blaster.mp3',
+  'assets/audio/k-impact.mp3', 'assets/audio/k-hurt.mp3', 'assets/audio/k-destroy.mp3', 'assets/audio/k-steps.mp3', 'assets/audio/k-click.mp3',
+  'assets/audio/k-attack.mp3', 'assets/audio/k-fall.mp3'];
+self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())));
+self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((k) => Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x)))).then(() => self.clients.claim())));
+// Réseau d'abord (pour recevoir les mises à jour), cache si hors ligne.
+// Les vidéos passent directement par le réseau (Safari les demande par morceaux).
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || e.request.headers.has('range') || url.pathname.endsWith('.mp4')) return;
+  if (url.origin !== location.origin) return;
+  e.respondWith(
+    fetch(e.request)
+      .then((r) => {
+        if (r.ok) {
+          const copy = r.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return r;
+      })
+      .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))),
+  );
+});

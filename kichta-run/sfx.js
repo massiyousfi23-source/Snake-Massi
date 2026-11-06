@@ -1,6 +1,7 @@
-// Effets sonores de Kichta Run avec Web Audio : sons Kenney (licence MIT, voir
-// assets/audio/CREDITS.txt), légère variation de hauteur à chaque lecture,
-// petite réverbération synthétique et pas de course en boucle.
+// Sons et musique de Kichta Run avec Web Audio.
+// Effets : sons Kenney (licence MIT, voir assets/audio/CREDITS.txt), légère
+// variation de hauteur à chaque lecture et petite réverbération.
+// Musique : boucles originales (menu, course, boss) lues sans coupure.
 const FILES = {
   jump: "assets/audio/k-jump.mp3",
   land: "assets/audio/k-land.mp3",
@@ -16,15 +17,23 @@ const FILES = {
   fall: "assets/audio/k-fall.mp3",
   meow: "assets/audio/pucci-meow.mp3",
 };
+const MUSIC = {
+  menu: "assets/audio/candy-menu.mp3",
+  run: "assets/audio/candy-run.mp3",
+  boss: "assets/audio/candy-boss.mp3",
+};
 
 let ctx = null;
 let master = null;
+let musicBus = null;
 let reverb = null;
+let enabled = true;
 const buffers = {};
-let loading = null;
 let steps = null;
+let current = null;
+let wanted = null;
 
-function impulse(context, seconds = 1.4, decay = 3.2) {
+function impulse(context, seconds = 1.2, decay = 3.4) {
   const length = Math.floor(context.sampleRate * seconds);
   const buffer = context.createBuffer(2, length, context.sampleRate);
   for (let c = 0; c < 2; c += 1) {
@@ -34,37 +43,47 @@ function impulse(context, seconds = 1.4, decay = 3.2) {
   return buffer;
 }
 
+function load(name, url) {
+  return fetch(url)
+    .then((r) => r.arrayBuffer())
+    .then((data) => new Promise((ok, ko) => ctx.decodeAudioData(data, ok, ko)))
+    .then((buffer) => {
+      buffers[name] = buffer;
+      if (name === `music:${wanted}`) music(wanted);
+    })
+    .catch(() => {});
+}
+
 export function unlock() {
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.9;
+    master.gain.value = enabled ? 0.9 : 0;
     master.connect(ctx.destination);
+    musicBus = ctx.createGain();
+    musicBus.gain.value = 0.55;
+    musicBus.connect(master);
     reverb = ctx.createConvolver();
     reverb.buffer = impulse(ctx);
     const wet = ctx.createGain();
-    wet.gain.value = 0.18;
+    wet.gain.value = 0.16;
     reverb.connect(wet).connect(master);
-    loading = Promise.all(
-      Object.entries(FILES).map(([name, url]) =>
-        fetch(url)
-          .then((r) => r.arrayBuffer())
-          .then((data) => new Promise((ok, ko) => ctx.decodeAudioData(data, ok, ko)))
-          .then((buffer) => {
-            buffers[name] = buffer;
-          })
-          .catch(() => {}),
-      ),
-    );
+    Object.entries(FILES).forEach(([name, url]) => load(name, url));
+    Object.entries(MUSIC).forEach(([name, url]) => load(`music:${name}`, url));
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 }
 
+export function setEnabled(on) {
+  enabled = on;
+  if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05);
+}
+
 /** Joue un son. rate : hauteur (1 = normale), vary : variation aléatoire. */
-export function play(name, { volume = 0.7, rate = 1, vary = 0.06, wet = true, delay = 0 } = {}) {
-  if (!ctx || !buffers[name]) return null;
+export function play(name, { volume = 0.7, rate = 1, vary = 0.05, wet = true, delay = 0 } = {}) {
+  if (!ctx || !enabled || !buffers[name]) return null;
   const source = ctx.createBufferSource();
   source.buffer = buffers[name];
   source.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * vary);
@@ -77,6 +96,36 @@ export function play(name, { volume = 0.7, rate = 1, vary = 0.06, wet = true, de
   return source;
 }
 
+/** Change de musique avec un fondu (null = silence). */
+export function music(name) {
+  wanted = name;
+  if (!ctx) return;
+  if (current && current.name === name) return;
+  if (current) {
+    const old = current;
+    old.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+    setTimeout(() => {
+      try {
+        old.source.stop();
+      } catch {
+        // déjà arrêtée
+      }
+    }, 1500);
+    current = null;
+  }
+  const buffer = name && buffers[`music:${name}`];
+  if (!buffer) return;
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  gain.gain.setTargetAtTime(name === "menu" ? 0.8 : 1, ctx.currentTime, 0.3);
+  source.connect(gain).connect(musicBus);
+  source.start();
+  current = { name, source, gain };
+}
+
 /** Pas de course : boucle légère dont le rythme suit la vitesse. */
 export function setRunning(on, speed = 1) {
   if (!ctx || !buffers.steps) return;
@@ -85,24 +134,13 @@ export function setRunning(on, speed = 1) {
     source.buffer = buffers.steps;
     source.loop = true;
     const gain = ctx.createGain();
-    gain.gain.value = 0.22;
+    gain.gain.value = 0;
     source.connect(gain).connect(master);
     source.start();
     steps = { source, gain };
   }
   if (steps) {
-    steps.source.playbackRate.value = 1.25 * speed;
-    steps.gain.gain.setTargetAtTime(on ? 0.22 : 0, ctx.currentTime, 0.04);
-  }
-}
-
-export function stopAll() {
-  if (steps) {
-    try {
-      steps.source.stop();
-    } catch {
-      // déjà arrêté
-    }
-    steps = null;
+    steps.source.playbackRate.value = 1.2 * speed;
+    steps.gain.gain.setTargetAtTime(on ? 0.12 : 0, ctx.currentTime, 0.05);
   }
 }
