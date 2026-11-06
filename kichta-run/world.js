@@ -12,11 +12,12 @@ import {
   VerticalTiltShiftShader,
   RoomEnvironment,
 } from "../vendor/three.addons.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b1";
+import { candy, canvasTexture } from "./toons.js?v=b2";
 
 export const LANE = 2.3;
 export const BIOMES = [
   {
+    id: "bonbons",
     name: "Rue des Bonbons",
     skyTop: 0xff9ccf,
     skyBottom: 0xffe3f1,
@@ -28,6 +29,7 @@ export const BIOMES = [
     decor: ["lollipop", "gumdrop", "cane", "house", "mushroom", "donut", "lollipop", "gumdrop", "house"],
   },
   {
+    id: "nuages",
     name: "Nuages de Guimauve",
     skyTop: 0x4aa8ff,
     skyBottom: 0xbfe4ff,
@@ -39,6 +41,7 @@ export const BIOMES = [
     decor: ["cloud", "balloon", "marshmallow", "cloud", "lollipop", "star", "balloon", "cloud"],
   },
   {
+    id: "chocolat",
     name: "Fabrique de Chocolat",
     skyTop: 0xff9a5a,
     skyBottom: 0xffe0b0,
@@ -50,6 +53,7 @@ export const BIOMES = [
     decor: ["cupcake", "choco", "pipe", "cupcake", "donut", "choco", "cane"],
   },
   {
+    id: "glaces",
     name: "Glaces Givrées",
     skyTop: 0x7fd6ff,
     skyBottom: 0xf2fbff,
@@ -59,6 +63,51 @@ export const BIOMES = [
     track: "#46c7d9",
     track2: "#9be7f0",
     decor: ["icecream", "popsicle", "icecream", "gumdrop", "popsicle", "mushroom", "star"],
+  },
+  // Mondes à acheter dans la boutique
+  {
+    id: "plage",
+    name: "Plage Sorbet",
+    price: 1500,
+    icon: "🏖️",
+    skyTop: 0x2fc6ff,
+    skyBottom: 0xfff1c9,
+    fog: 0xffeacc,
+    ground: 0xffe2a8,
+    groundDots: "#ffffff",
+    track: "#ff8a5c",
+    track2: "#ffc09e",
+    decor: ["palm", "parasol", "beachball", "palm", "starfish", "popsicle", "palm", "parasol"],
+  },
+  {
+    id: "galaxie",
+    name: "Galaxie Sucrée",
+    price: 2500,
+    icon: "🪐",
+    skyTop: 0x120a3a,
+    skyBottom: 0x5a2f9e,
+    fog: 0x3a2370,
+    ground: 0x2a1a5e,
+    groundDots: "#ffe9ff",
+    track: "#7b3dff",
+    track2: "#b48cff",
+    night: true,
+    decor: ["planet", "rocket", "star", "planet", "crystal", "star", "rocket", "crystal"],
+  },
+  {
+    id: "halloween",
+    name: "Halloween Bonbons",
+    price: 3500,
+    icon: "🎃",
+    skyTop: 0x3a1c5e,
+    skyBottom: 0xff9a5a,
+    fog: 0x8a4a6a,
+    ground: 0x3e2a4a,
+    groundDots: "#ff9a3d",
+    track: "#ff7a1f",
+    track2: "#ffb066",
+    night: true,
+    decor: ["pumpkin", "ghost", "spooky", "pumpkin", "candycorn", "ghost", "pumpkin", "cane"],
   },
 ];
 
@@ -551,6 +600,210 @@ export function createWorld(canvas) {
     },
   };
 
+  // Décors des mondes à acheter
+  Object.assign(DECOR, {
+    palm() {
+      const g = new THREE.Group();
+      const h = 4 + Math.random() * 2;
+      const trunkMat = candy(0xd9a066, { roughness: 0.5 });
+      for (let i = 0; i < 7; i += 1) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.22 - i * 0.012, 0.26 - i * 0.012, h / 7, 12), trunkMat);
+        seg.position.set(Math.sin(i * 0.35) * 0.25, (i + 0.5) * (h / 7), 0);
+        g.add(seg);
+      }
+      const leaf = candy(pick([0x3dd68c, 0x2fbf73, 0x7dff9a]));
+      for (let i = 0; i < 7; i += 1) {
+        const l = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), leaf);
+        l.scale.set(1.5, 0.12, 0.45);
+        const a = (i / 7) * Math.PI * 2;
+        l.position.set(Math.cos(a) * 1.2 + 0.4, h + 0.1 - 0.25, Math.sin(a) * 1.2);
+        l.rotation.y = -a;
+        l.rotation.z = -0.35;
+        g.add(l);
+      }
+      for (let i = 0; i < 3; i += 1) g.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), candy(0x8a5a2a)).translateX(0.4 + (i - 1) * 0.3).translateY(h - 0.25));
+      return g;
+    },
+    parasol() {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3, 8), candy(0xffffff)).translateY(1.5));
+      const tex = canvasTexture(256, 32, (c, W, H) => {
+        for (let i = 0; i < 8; i += 1) {
+          c.fillStyle = i % 2 ? "#ffffff" : pick(["#ff4d6d", "#3dd6ff", "#ffd23f"]);
+          c.fillRect((i * W) / 8, 0, W / 8, H);
+        }
+      });
+      const top = new THREE.Mesh(new THREE.ConeGeometry(1.6, 0.7, 16, 1, true), candy(0xffffff, { map: tex, side: THREE.DoubleSide }));
+      top.position.y = 3.1;
+      g.add(top);
+      return g;
+    },
+    beachball() {
+      const tex = canvasTexture(256, 128, (c, W, H) => {
+        const cols = ["#ff4d6d", "#ffffff", "#3dd6ff", "#ffffff", "#ffd23f", "#ffffff"];
+        cols.forEach((col, i) => {
+          c.fillStyle = col;
+          c.fillRect((i * W) / 6, 0, W / 6, H);
+        });
+      });
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), candy(0xffffff, { map: tex, roughness: 0.15 }));
+      b.position.y = 0.9;
+      const holder = new THREE.Group();
+      holder.add(b);
+      holder.userData.spin = b;
+      return holder;
+    },
+    starfish() {
+      const shape = new THREE.Shape();
+      for (let i = 0; i < 10; i += 1) {
+        const r = i % 2 ? 0.45 : 1.2;
+        const a = (i / 10) * Math.PI * 2;
+        if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: true, bevelSize: 0.15, bevelThickness: 0.15 }), candy(pick([0xff7a5c, 0xff5fa2, 0xffb03d])));
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.1;
+      const g = new THREE.Group();
+      g.add(m);
+      return g;
+    },
+    planet() {
+      const g = new THREE.Group();
+      const r = 1 + Math.random() * 1.6;
+      const p = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 20), candy(pick([0xff7fbf, 0x7fd6ff, 0xffd27a, 0xb48cff]), { emissive: 0x4a2a8a, emissiveIntensity: 0.25 }));
+      p.position.y = 3 + Math.random() * 5;
+      g.add(p);
+      if (Math.random() < 0.6) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.6, r * 0.12, 8, 48), candy(0xffffff, { emissive: 0xffc0ff, emissiveIntensity: 0.5 }));
+        ring.scale.z = 0.25;
+        ring.rotation.x = Math.PI / 2.4;
+        ring.position.copy(p.position);
+        g.add(ring);
+      }
+      g.userData.bob = p;
+      return g;
+    },
+    rocket() {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.6, 2.2, 8, 20), candy(0xffffff));
+      body.position.y = 2;
+      g.add(body);
+      g.add(new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.9, 20), candy(0xff3d6e)).translateY(3.6));
+      for (let i = 0; i < 3; i += 1) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.7), candy(0xff3d6e));
+        const a = (i / 3) * Math.PI * 2;
+        fin.position.set(Math.cos(a) * 0.6, 0.9, Math.sin(a) * 0.6);
+        fin.rotation.y = -a;
+        g.add(fin);
+      }
+      const win = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), candy(0x5ad1ff, { emissive: 0x5ad1ff, emissiveIntensity: 0.8 }));
+      win.position.set(0, 2.6, 0.55);
+      g.add(win);
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.2, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 1.4, 0.4) }));
+      flame.rotation.x = Math.PI;
+      flame.position.y = 0.1;
+      flame.castShadow = false;
+      g.add(flame);
+      g.position.y = 1 + Math.random() * 3;
+      const holder = new THREE.Group();
+      holder.add(g);
+      holder.userData.bob = g;
+      return holder;
+    },
+    crystal() {
+      const g = new THREE.Group();
+      const col = pick([0xff7fe0, 0x7fe9ff, 0xb48cff]);
+      for (let i = 0; i < 4; i += 1) {
+        const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.5 + Math.random() * 0.6), candy(col, { emissive: col, emissiveIntensity: 0.6, roughness: 0.05 }));
+        c.scale.y = 2;
+        c.position.set((Math.random() - 0.5) * 2, 1, (Math.random() - 0.5) * 2);
+        c.rotation.z = (Math.random() - 0.5) * 0.6;
+        g.add(c);
+      }
+      return g;
+    },
+    pumpkin() {
+      const g = new THREE.Group();
+      const s = 0.8 + Math.random() * 0.7;
+      const m = candy(0xff8a1f, { roughness: 0.35 });
+      for (let i = 0; i < 8; i += 1) {
+        const lobe = new THREE.Mesh(new THREE.SphereGeometry(0.7 * s, 16, 12), m);
+        const a = (i / 8) * Math.PI * 2;
+        lobe.scale.set(0.55, 0.85, 0.55);
+        lobe.position.set(Math.cos(a) * 0.45 * s, 0.6 * s, Math.sin(a) * 0.45 * s);
+        g.add(lobe);
+      }
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.14 * s, 0.4 * s, 8), candy(0x3d8a2a)).translateY(1.25 * s));
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.2 * s, 1 * s),
+        new THREE.MeshBasicMaterial({
+          transparent: true,
+          color: new THREE.Color(2.2, 1.6, 0.4),
+          map: canvasTexture(128, 128, (c) => {
+            c.fillStyle = "#fff";
+            c.beginPath();
+            c.moveTo(30, 50); c.lineTo(52, 30); c.lineTo(58, 56); c.fill();
+            c.beginPath();
+            c.moveTo(98, 50); c.lineTo(76, 30); c.lineTo(70, 56); c.fill();
+            c.beginPath();
+            c.moveTo(24, 76); c.lineTo(104, 76); c.lineTo(84, 104); c.lineTo(64, 92); c.lineTo(44, 104); c.fill();
+          }),
+        }),
+      );
+      face.position.set(0, 0.6 * s, 0.83 * s);
+      g.add(face);
+      g.userData.faceTrack = true;
+      return g;
+    },
+    ghost() {
+      const g = new THREE.Group();
+      const m = candy(0xffffff, { roughness: 0.6, clearcoat: 0.3, emissive: 0xb8a0ff, emissiveIntensity: 0.15 });
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.1, 8, 18), m);
+      body.position.y = 2.2;
+      g.add(body);
+      for (const x of [-0.25, 0.25]) g.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), candy(0x1a1020)).translateX(x).translateY(2.6).translateZ(0.62));
+      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), candy(0x1a1020)).translateY(2.2).translateZ(0.65));
+      const holder = new THREE.Group();
+      holder.add(g);
+      holder.userData.bob = g;
+      holder.userData.faceTrack = true;
+      return holder;
+    },
+    spooky() {
+      const g = new THREE.Group();
+      const m = candy(0x2a1a2e, { roughness: 0.5 });
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 4, 8), m).translateY(2));
+      for (let i = 0; i < 5; i += 1) {
+        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.12, 1.6, 6), m);
+        const a = (i / 5) * Math.PI * 2;
+        br.position.set(Math.cos(a) * 0.5, 3.4 + (i % 2) * 0.4, Math.sin(a) * 0.5);
+        br.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
+        g.add(br);
+      }
+      const bat = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), candy(0x111111));
+      bat.position.set(0.6, 4.4, 0);
+      g.add(bat);
+      return g;
+    },
+    candycorn() {
+      const g = new THREE.Group();
+      const s = 1 + Math.random();
+      const tex = canvasTexture(16, 128, (c, W, H) => {
+        c.fillStyle = "#ffffff";
+        c.fillRect(0, 0, W, H / 3);
+        c.fillStyle = "#ff9a1f";
+        c.fillRect(0, H / 3, W, H / 3);
+        c.fillStyle = "#ffd23f";
+        c.fillRect(0, (2 * H) / 3, W, H / 3);
+      });
+      const corn = new THREE.Mesh(new THREE.ConeGeometry(0.8 * s, 2.4 * s, 18), candy(0xffffff, { map: tex }));
+      corn.position.y = 1.2 * s;
+      g.add(corn);
+      return g;
+    },
+  });
+
   const decor = [];
   let nextDecorZ = 0;
   function spawnDecor(z, biome) {
@@ -930,7 +1183,16 @@ export function createWorld(canvas) {
   const pCol = new Float32Array(MAXP * 3);
   pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
   pGeo.setAttribute("color", new THREE.BufferAttribute(pCol, 3));
-  const pMat = new THREE.PointsMaterial({ size: 0.28, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  // Particules rondes et douces (étoiles de sucre)
+  const dotTex = canvasTexture(64, 64, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, "rgba(255,255,255,1)");
+    gr.addColorStop(0.35, "rgba(255,255,255,.9)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, w);
+  });
+  const pMat = new THREE.PointsMaterial({ size: 0.32, map: dotTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const points = new THREE.Points(pGeo, pMat);
   points.frustumCulled = false;
   scene.add(points);
@@ -1033,6 +1295,10 @@ export function createWorld(canvas) {
       applyBiome(biomeBlend);
     }
     const biome = BIOMES[biomeIndex % BIOMES.length];
+    // Mondes de nuit : lumière plus douce
+    const lightK = biome.night ? 0.62 : 1;
+    hemi.intensity += (0.75 * lightK - hemi.intensity) * Math.min(1, dt * 1.5);
+    sun.intensity += (2.2 * lightK - sun.intensity) * Math.min(1, dt * 1.5);
     // Le sol, la piste et les bordures suivent Kichta ; leur texture défile
     const snap = playerZ;
     ground.position.set(0, -0.4, snap - 60);

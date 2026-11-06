@@ -3,9 +3,9 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b1";
-import { createToon, dressToon, animateToon, flashToon, SKINS, OUTFITS, candy } from "./toons.js?v=b1";
-import * as Sfx from "./sfx.js?v=b1";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b2";
+import { createToon, dressToon, animateToon, flashToon, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b2";
+import * as Sfx from "./sfx.js?v=b2";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -19,8 +19,11 @@ const DEFAULT_SAVE = {
   best: 0,
   level: 1,
   missions: [],
-  owned: { hat: ["none"], face: ["none"], back: ["none"], skin: ["caramel"] },
-  wear: { hat: "none", face: "none", back: "none", skin: "caramel" },
+  owned: { hat: ["none"], face: ["none"], neck: ["none"], back: ["none"], skin: ["caramel"] },
+  wear: { hat: "none", face: "none", neck: "none", back: "none", skin: "caramel" },
+  worlds: ["bonbons", "nuages", "chocolat", "glaces"],
+  startWorld: "bonbons",
+  pending: [],
   upgrades: { magnet: 0, shield: 0, double: 0, balloon: 0, spring: 0 },
   lifetime: {},
   chestDay: "",
@@ -66,6 +69,7 @@ const MISSION_TYPES = [
   { id: "wagons", stat: "wagons", base: 3, step: 3, text: (n) => `Cours sur le toit de ${n} wagons` },
   { id: "near", stat: "near", base: 4, step: 4, text: (n) => `Fais ${n} esquives de justesse` },
   { id: "pucci", stat: "pucci", base: 1, step: 0.5, text: (n) => `Bats Pucci ${n} fois` },
+  { id: "doubles", stat: "doubles", base: 5, step: 5, text: (n) => `Fais ${n} doubles sauts` },
 ];
 function roundGoal(n) {
   if (n >= 1000) return Math.round(n / 500) * 500;
@@ -206,11 +210,57 @@ function checkMissions() {
     const reward = 100 * save.level;
     save.coins += reward;
     newMissions();
-    banner(`NIVEAU ${save.level} !`, `Multiplicateur ×${save.level} · +${reward} croquettes`);
-    Sfx.play("destroy", { rate: 1.4, volume: 0.5 });
+    const gifts = levelRewards(save.level);
+    const gift = gifts[0] ? ` · 🎁 ${OUTFITS[gifts[0].slot][gifts[0].id].name} !` : "";
+    banner(`NIVEAU ${save.level} !`, `Multiplicateur ×${save.level} · +${reward} croquettes${gift}`);
+    Sfx.play("fanfare", { volume: 0.6 });
+    if (G.mode === "run") world.confetti(P.x, 2, P.z - 3, 70);
     changed = true;
   }
   if (changed) persist();
+}
+
+// ---------------------------------------------------------------------------
+// Récompenses : niveaux, coffres, cadeaux secrets
+// ---------------------------------------------------------------------------
+const ALL_ITEMS = Object.entries(OUTFITS).flatMap(([slot, items]) => Object.entries(items).map(([id, item]) => ({ slot, id, ...item })));
+const owns = (slot, id) => save.owned[slot] && save.owned[slot].includes(id);
+/** Donne un objet et le met de côté pour la cérémonie d'ouverture. */
+function grantItem(slot, id, source) {
+  if (!save.owned[slot]) save.owned[slot] = ["none"];
+  if (!owns(slot, id)) save.owned[slot].push(id);
+  save.pending.push({ slot, id, source });
+  persist();
+}
+function levelRewards(level) {
+  const items = ALL_ITEMS.filter((i) => i.unlock === "level" && i.level === level);
+  items.forEach((i) => grantItem(i.slot, i.id, "level"));
+  // Au-delà des récompenses prévues : un coffre bonus
+  if (!items.length && level > 2) save.pending.push({ coins: 150 * level, source: "level" });
+  return items;
+}
+const RARITY_WEIGHT = { commun: 50, rare: 30, epique: 14, legendaire: 5, mythique: 1 };
+function rollChestItem() {
+  const pool = ALL_ITEMS.filter((i) => i.id !== "none" && (i.unlock === "chest" || i.unlock === "shop") && !owns(i.slot, i.id));
+  if (!pool.length) return null;
+  let total = pool.reduce((sum, i) => sum + (RARITY_WEIGHT[i.rarity] || 10) * (i.unlock === "chest" ? 2 : 1), 0);
+  let r = Math.random() * total;
+  for (const i of pool) {
+    r -= (RARITY_WEIGHT[i.rarity] || 10) * (i.unlock === "chest" ? 2 : 1);
+    if (r <= 0) return i;
+  }
+  return pool[0];
+}
+function grantSecret() {
+  const item = ALL_ITEMS.find((i) => i.unlock === "secret" && !owns(i.slot, i.id));
+  if (item) grantItem(item.slot, item.id, "secret");
+  else save.pending.push({ coins: 600, source: "secret" });
+  persist();
+  banner("🎁 CADEAU SECRET !", "10 glissades dans ce monde : ouvre-le à la fin de la course");
+  Sfx.play("sparkle", { volume: 0.8 });
+  Sfx.play("fanfare", { volume: 0.5, delay: 0.1 });
+  world.confetti(P.x, 2, P.z - 3, 90);
+  flash("#ffe14d");
 }
 // Les missions cumulées avancent avec les compteurs
 const CUMULATIVE = new Set(MISSION_TYPES.filter((t) => !t.run).map((t) => t.stat));
@@ -398,12 +448,31 @@ function jump() {
     statWithMissions("jumps");
     Sfx.play("jump", { volume: 0.5, rate: POWER.spring > 0 ? 0.85 : 1.15 });
     world.burst(P.x, 0.1, P.z, 0xffffff, 8, 3);
+  } else if (P.airJumps < 1 && P.y < 9) {
+    // Double saut : salto et miaulement de joie
+    P.airJumps += 1;
+    P.vy = (POWER.spring > 0 ? 16 : JUMP) * 0.95;
+    P.flip = 0.5;
+    P.slide = 0;
+    statWithMissions("doubles");
+    Sfx.play("meow", { volume: 0.75, rate: 1.55, vary: 0.04 });
+    Sfx.play("sparkle", { volume: 0.35 });
+    world.burst(P.x, P.y + 0.6, P.z, 0xff9ccf, 22, 5);
+  }
+}
+function countSlide() {
+  statWithMissions("slides");
+  G.worldSlides += 1;
+  if (G.worldSlides === 5 && !G.secretGiven) toast("🤫 Psst… continue de glisser !", "power");
+  if (G.worldSlides === 10 && !G.secretGiven) {
+    G.secretGiven = true;
+    grantSecret();
   }
 }
 function slide() {
   if (!isRunning() || POWER.balloon > 0) return;
   if (P.grounded) {
-    if (P.slide <= 0) statWithMissions("slides");
+    if (P.slide <= 0) countSlide();
     P.slide = 0.75;
     Sfx.play("fall", { volume: 0.25, rate: 2, wet: false });
   } else {
@@ -451,6 +520,7 @@ canvas.addEventListener("pointerup", () => {
 });
 addEventListener("keydown", (e) => {
   const k = e.code;
+  if (e.repeat) return;
   if (["ArrowLeft", "KeyA", "KeyQ"].includes(k)) moveLane(-1);
   else if (["ArrowRight", "KeyD"].includes(k)) moveLane(1);
   else if (["ArrowUp", "KeyW", "KeyZ", "Space"].includes(k)) {
@@ -496,7 +566,12 @@ function startBoss() {
   $("#bossBar").classList.remove("hidden");
   updateBossBar();
   banner("PUCCI ATTAQUE !", "Attrape les poissons-fusées 🐟 pour la toucher");
-  Sfx.play("meow", { volume: 0.9, rate: 0.9 });
+  // Face à face : les deux chats crachent, poils hérissés
+  G.hissT = 2.8;
+  Sfx.play("hiss", { volume: 0.9, rate: 1.05, wet: true });
+  Sfx.play("hiss", { volume: 0.8, rate: 0.82, delay: 0.7 });
+  Sfx.play("meow", { volume: 0.7, rate: 0.85, delay: 1.5 });
+  world.shake(0.25);
   Sfx.music("boss");
 }
 function updateBossBar() {
@@ -554,7 +629,7 @@ function updateBoss(dt) {
   const enterY = Math.max(3.2, 9 - b.t * 4);
   boss.position.set(b.x, enterY + Math.sin(G.t * 2) * 0.25, P.z - 15);
   boss.rotation.set(0, 0, Math.sin(G.t * 1.5) * 0.08);
-  animateToon(pucci, G.t, b.throwT < 0.3 ? "throw" : "idle");
+  animateToon(pucci, G.t, G.hissT > 0.3 ? "hiss" : b.throwT < 0.3 ? "throw" : "idle");
   flashToon(pucci, b.hurt > 0 ? b.hurt * 3 : 0);
   if (b.t > 1.5) {
     b.throwT -= dt;
@@ -631,13 +706,21 @@ function clearTrack() {
   G.rockets.length = 0;
 }
 
+// Mondes possédés, en commençant par le monde choisi dans la boutique
+function worldRotation() {
+  const owned = BIOMES.map((b, i) => ({ b, i })).filter(({ b }) => save.worlds.includes(b.id));
+  const start = Math.max(0, owned.findIndex(({ b }) => b.id === save.startWorld));
+  return owned.slice(start).concat(owned.slice(0, start)).map(({ i }) => i);
+}
+
 function startRun() {
   Sfx.unlock();
   Sfx.play("click", { volume: 0.5 });
   clearTrack();
   world.clearDecor(0);
-  Object.assign(G, { mode: "run", dist: 0, score: 0, coins: 0, speed: 14, nextRowZ: -35, nextPowerAt: 200 + Math.random() * 150, nextBossAt: 1300, biome: 0, revives: 0, stats: {}, boss: null, coinStreak: 0 });
-  Object.assign(P, { lane: 0, x: 0, y: 0, vy: 0, z: 0, grounded: true, slide: 0, invuln: 0, squash: 0, fromLane: 0, lastLaneT: -9 });
+  G.worldOrder = worldRotation();
+  Object.assign(G, { mode: "run", dist: 0, score: 0, coins: 0, speed: 14, nextRowZ: -35, nextPowerAt: 200 + Math.random() * 150, nextBossAt: 1300, biome: 0, revives: 0, stats: {}, boss: null, coinStreak: 0, worldSlides: 0, secretGiven: false, hissT: 0 });
+  Object.assign(P, { lane: 0, x: 0, y: 0, vy: 0, z: 0, grounded: true, slide: 0, invuln: 0, squash: 0, fromLane: 0, lastLaneT: -9, airJumps: 0, flip: 0 });
   Object.keys(POWER).forEach((k) => (POWER[k] = 0));
   if (save.startShield > 0) {
     save.startShield -= 1;
@@ -645,7 +728,7 @@ function startRun() {
     toast("🫧 Bouclier de départ !", "power");
   }
   boss.visible = false;
-  world.setBiome(0, true);
+  world.setBiome(G.worldOrder[0], true);
   save.runs += 1;
   persist();
   show("hud");
@@ -703,6 +786,8 @@ function gameOver() {
     Sfx.play("coin", { rate: 0.5, volume: 0.8 });
   }
   renderMissionList($("#overMissions"));
+  $("#giftsBtn").classList.toggle("hidden", !save.pending.length);
+  $("#giftsCount").textContent = save.pending.length;
   // Continuer contre des croquettes, quelques secondes seulement
   const cost = 50 * 2 ** G.revives;
   const btn = $("#reviveBtn");
@@ -795,13 +880,18 @@ function updateRun(dt) {
   setRunStat("coins", G.coins);
 
   // Changement de monde
-  const biome = Math.floor(G.dist / 750) % BIOMES.length;
-  if (biome !== G.biome) {
-    G.biome = biome;
+  const step = Math.floor(G.dist / 750) % G.worldOrder.length;
+  if (step !== G.biome) {
+    G.biome = step;
+    const biome = G.worldOrder[step];
     world.setBiome(biome);
-    banner(BIOMES[biome].name, "Nouveau monde !");
+    banner(`${BIOMES[biome].icon || "🍭"} ${BIOMES[biome].name}`, "Nouveau monde !");
     Sfx.play("coin", { rate: 0.5, volume: 0.5 });
+    // Le compteur du cadeau secret repart à zéro dans chaque monde
+    G.worldSlides = 0;
+    G.secretGiven = false;
   }
+  G.hissT = Math.max(0, (G.hissT || 0) - dt);
   if (!G.boss && G.dist > G.nextBossAt) startBoss();
 
   // Nouvelles rangées devant
@@ -880,12 +970,13 @@ function updateRun(dt) {
         if (P.queuedSlide) {
           P.queuedSlide = false;
           P.slide = 0.75;
-          statWithMissions("slides");
+          countSlide();
         }
       }
       P.y = ground;
       P.vy = 0;
       P.grounded = true;
+      P.airJumps = 0;
       P.coyote = 0.1;
     } else {
       if (P.grounded) P.coyote = 0.1;
@@ -1079,11 +1170,19 @@ function tick(dt, draw) {
     updateCoins(dt);
   }
   // Kichta
+  const inMenu = G.mode === "menu" || G.mode === "reveal";
   const pose =
-    G.mode === "menu" ? "idle" : G.mode === "dying" || G.mode === "over" ? "hit" : POWER.balloon > 0 ? "fly" : P.slide > 0 ? "slide" : !P.grounded ? (P.vy > 0 ? "jump" : "fall") : "run";
-  kichta.position.set(P.x, P.y, P.z);
-  kichta.rotation.y = G.mode === "menu" ? Math.sin(G.t * 0.6) * 0.35 : Math.PI;
-  animateToon(kichta, G.t, pose, { speed: G.speed / 14, lean: (laneX(P.lane) - P.x) * 0.12, squash: P.squash });
+    G.mode === "reveal" ? (reveal.happy ? "win" : "idle") : inMenu ? "idle" : G.mode === "dying" || G.mode === "over" ? "hit" : POWER.balloon > 0 ? "fly" : P.slide > 0 ? "slide" : !P.grounded ? (P.vy > 0 ? "jump" : "fall") : "run";
+  kichta.position.set(P.x + (G.mode === "reveal" ? -1.15 : 0), P.y, P.z);
+  kichta.rotation.y = inMenu ? Math.sin(G.t * 0.6) * 0.35 : Math.PI;
+  P.flip = Math.max(0, (P.flip || 0) - dt);
+  const flipK = P.flip > 0 ? 1 - P.flip / 0.5 : 0;
+  // Poils hérissés face à Pucci
+  const bristle = Math.min(1, (G.hissT || 0) / 0.6);
+  kichta.userData.bristle += (bristle - kichta.userData.bristle) * Math.min(1, dt * 10);
+  pucci.userData.bristle = kichta.userData.bristle;
+  animateToon(kichta, G.t, pose, { speed: G.speed / 14, lean: (laneX(P.lane) - P.x) * 0.12, squash: P.squash, flip: flipK * flipK * (3 - 2 * flipK) });
+  if (G.mode === "reveal") updateReveal(dt);
   balloons.visible = POWER.balloon > 0;
   shieldBubble.visible = POWER.shield > 0;
   shieldBubble.material.opacity = 0.22 + Math.sin(G.t * 6) * 0.06 + (POWER.shield > 0 && POWER.shield < 2 ? Math.sin(G.t * 25) * 0.15 : 0);
@@ -1092,8 +1191,16 @@ function tick(dt, draw) {
   kichta.visible = !(P.invuln > 0 && G.mode === "run" && Math.floor(G.t * 14) % 2 === 0);
 
   if (G.mode !== "pause") {
-    world.update(dt, G.t, { playerX: P.x, playerY: P.y, playerZ: P.z, speed: G.mode === "run" ? G.speed : 0, mode: G.mode, fly: POWER.balloon > 0 });
+    world.update(dt, G.t, { playerX: P.x, playerY: P.y, playerZ: P.z, speed: G.mode === "run" ? G.speed : 0, mode: inMenu ? "menu" : G.mode, fly: POWER.balloon > 0 });
     Sfx.setRunning(G.mode === "run" && P.grounded && P.slide <= 0, G.speed / 16);
+  }
+  if (G.mode === "reveal") {
+    // Caméra de la cérémonie : Kichta à côté du coffre
+    const portrait = innerWidth < innerHeight;
+    world.camera.position.set(0.1, portrait ? 2.4 : 2.1, portrait ? 6.2 : 5.4);
+    world.camera.lookAt(0.1, portrait ? 1.5 : 1.1, 0.6);
+    world.camera.fov = portrait ? 62 : 52;
+    world.camera.updateProjectionMatrix();
   }
   if (draw) world.render();
   if (G.mode === "run" || G.mode === "dying") updateHud();
@@ -1103,7 +1210,7 @@ function tick(dt, draw) {
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
-const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud"];
+const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud", "reveal"];
 function show(name) {
   const keepHud = ["hud", "pause", "over"].includes(name);
   screens.forEach((s) => $(`#${s}`).classList.toggle("hidden", !(s === name || (s === "hud" && keepHud))));
@@ -1210,7 +1317,9 @@ function refreshMenu() {
   document.querySelectorAll(".coinsTotal").forEach((el) => (el.textContent = save.coins.toLocaleString("fr-FR")));
   $("#bestMenu").textContent = save.best.toLocaleString("fr-FR");
   $("#levelBadge").textContent = `×${save.level}`;
-  $("#chestBadge").classList.toggle("hidden", save.chestDay === today());
+  const gifts = save.pending.length + (save.chestDay === today() ? 0 : 1);
+  $("#chestBadge").textContent = gifts > 1 ? String(gifts) : "!";
+  $("#chestBadge").classList.toggle("hidden", gifts === 0);
   $("#cinemaBtn").classList.toggle("locked", !save.cinematic);
   $("#soundBtn").textContent = save.sound ? "🔊" : "🔇";
 }
@@ -1218,7 +1327,29 @@ function refreshMenu() {
 // --- Boutique ---------------------------------------------------------------------
 const UPGRADE_COST = [150, 350, 700, 1200, 2000];
 let shopTab = "skin";
-const TABS = { skin: "Pelages", hat: "Chapeaux", face: "Lunettes", back: "Dos", upgrades: "Bonus" };
+const TABS = { skin: "Pelages", hat: "Chapeaux", face: "Visage", neck: "Cou", back: "Dos", vintage: "Vintage", worlds: "Mondes", upgrades: "Bonus" };
+function itemCard(slot, id, item) {
+  const owned = owns(slot, id);
+  const worn = save.wear[slot] === id;
+  const rarity = RARITY[item.rarity] || RARITY.commun;
+  const hidden = item.unlock === "secret" && !owned;
+  let label;
+  let disabled = false;
+  let action = `data-item="${id}" data-slot="${slot}"`;
+  if (worn) {
+    label = "PORTÉ";
+    disabled = true;
+  } else if (owned) label = "PORTER";
+  else if (item.unlock === "shop") {
+    label = `<i class="coin"></i>${item.price}`;
+    disabled = save.coins < item.price;
+  } else {
+    label = item.unlock === "level" ? `🔒 Niveau ${item.level}` : item.unlock === "chest" ? "🎁 Coffres" : "🤫 Secret";
+    disabled = true;
+    action = "";
+  }
+  return `<div class="item ${worn ? "worn" : ""} ${owned ? "" : "locked"}" style="--r:${rarity.color}"><em class="rar">${hidden ? "???" : rarity.name}</em><div class="icon">${hidden ? "❓" : item.icon || "✨"}</div><b>${hidden ? "Objet secret" : item.name}</b>${item.vintage ? '<small class="vint">Vintage</small>' : `<small>${SLOT_NAMES[slot]}</small>`}<button ${action} ${disabled ? "disabled" : ""}>${label}</button></div>`;
+}
 function renderShop() {
   $("#shopTabs").innerHTML = Object.entries(TABS)
     .map(([k, v]) => `<button data-tab="${k}" class="${k === shopTab ? "on" : ""}">${v}</button>`)
@@ -1230,20 +1361,30 @@ function renderShop() {
       const max = lvl >= 5;
       return `<div class="item"><div class="icon">${info.icon}</div><b>${info.name}</b><small>${Math.round(duration(k))} s</small><div class="dots">${"●".repeat(lvl)}${"○".repeat(5 - lvl)}</div><button data-up="${k}" ${max || save.coins < UPGRADE_COST[lvl] ? "disabled" : ""}>${max ? "MAX" : `<i class="coin"></i>${UPGRADE_COST[lvl]}`}</button></div>`;
     });
-  } else {
-    const catalog = shopTab === "skin" ? SKINS : OUTFITS[shopTab];
-    items = Object.entries(catalog).map(([k, item]) => {
-      const owned = save.owned[shopTab].includes(k);
-      const worn = save.wear[shopTab] === k;
-      const icon = shopTab === "skin" ? `<span class="swatch" style="--a:${item.base};--b:${item.stripe}"></span>` : ICONS[k] || "✨";
-      const label = worn ? "PORTÉ" : owned ? "PORTER" : `<i class="coin"></i>${item.price}`;
-      return `<div class="item ${worn ? "worn" : ""}"><div class="icon">${icon}</div><b>${item.name}</b><button data-item="${k}" ${worn || (!owned && save.coins < item.price) ? "disabled" : ""}>${label}</button></div>`;
+  } else if (shopTab === "worlds") {
+    items = BIOMES.map((b) => {
+      const owned = save.worlds.includes(b.id);
+      const start = save.startWorld === b.id;
+      const sky = `#${b.skyTop.toString(16).padStart(6, "0")}`;
+      const ground = `#${b.ground.toString(16).padStart(6, "0")}`;
+      const label = start ? "DÉPART ✔" : owned ? "PARTIR D'ICI" : `<i class="coin"></i>${b.price}`;
+      return `<div class="item world ${start ? "worn" : ""}"><div class="icon"><span class="world-swatch" style="--a:${sky};--b:${b.track};--c:${ground}">${b.icon || "🍭"}</span></div><b>${b.name}</b><small>${owned ? "Dans tes mondes" : "Nouveau monde"}</small><button data-world="${b.id}" ${start || (!owned && save.coins < b.price) ? "disabled" : ""}>${label}</button></div>`;
     });
+  } else if (shopTab === "skin") {
+    items = Object.entries(SKINS).map(([k, item]) => {
+      const owned = owns("skin", k);
+      const worn = save.wear.skin === k;
+      const label = worn ? "PORTÉ" : owned ? "PORTER" : `<i class="coin"></i>${item.price}`;
+      return `<div class="item ${worn ? "worn" : ""}"><div class="icon"><span class="swatch" style="--a:${item.base};--b:${item.stripe}"></span></div><b>${item.name}</b><small>Pelage</small><button data-item="${k}" data-slot="skin" ${worn || (!owned && save.coins < item.price) ? "disabled" : ""}>${label}</button></div>`;
+    });
+  } else if (shopTab === "vintage") {
+    items = ALL_ITEMS.filter((i) => i.vintage).map((i) => itemCard(i.slot, i.id, i));
+  } else {
+    items = Object.entries(OUTFITS[shopTab]).map(([id, item]) => itemCard(shopTab, id, item));
   }
   $("#shopGrid").innerHTML = items.join("");
   refreshMenu();
 }
-const ICONS = { none: "🚫", noeud: "🎀", casquette: "🧢", couronne: "👑", sorcier: "🎩", casque: "🎧", soleil: "🕶️", coeur: "😍", cape: "🦸", ailes: "🧚", fusee: "🚀" };
 $("#shopTabs").addEventListener("click", (e) => {
   const tab = e.target.closest("button")?.dataset.tab;
   if (!tab) return;
@@ -1261,17 +1402,29 @@ $("#shopGrid").addEventListener("click", (e) => {
     save.coins -= cost;
     save.upgrades[k] += 1;
     Sfx.play("coin", { rate: 0.7, volume: 0.6 });
+  } else if (btn.dataset.world) {
+    const b = BIOMES.find((x) => x.id === btn.dataset.world);
+    if (!save.worlds.includes(b.id)) {
+      if (save.coins < b.price) return;
+      save.coins -= b.price;
+      save.worlds.push(b.id);
+      Sfx.play("fanfare", { volume: 0.5 });
+      world.confetti(0, 1.5, -0.5, 60);
+    } else Sfx.play("click", { volume: 0.5 });
+    save.startWorld = b.id;
+    world.setBiome(BIOMES.indexOf(b));
   } else {
     const k = btn.dataset.item;
-    const catalog = shopTab === "skin" ? SKINS : OUTFITS[shopTab];
-    if (!save.owned[shopTab].includes(k)) {
-      if (save.coins < catalog[k].price) return;
-      save.coins -= catalog[k].price;
-      save.owned[shopTab].push(k);
+    const slot = btn.dataset.slot;
+    const item = slot === "skin" ? SKINS[k] : OUTFITS[slot][k];
+    if (!owns(slot, k)) {
+      if (save.coins < item.price) return;
+      save.coins -= item.price;
+      save.owned[slot].push(k);
       Sfx.play("coin", { rate: 0.7, volume: 0.6 });
       world.confetti(0, 1.5, -0.5, 50);
     } else Sfx.play("click", { volume: 0.5 });
-    save.wear[shopTab] = k;
+    save.wear[slot] = k;
     applyLook();
   }
   persist();
@@ -1294,33 +1447,249 @@ function applyLook() {
 }
 kichta.userData.skin = save.wear.skin;
 
-// --- Coffre du jour --------------------------------------------------------------------
+// --- Coffres : cérémonie d'ouverture façon jeu vidéo --------------------------------------
+const CHEST_LOOK = {
+  daily: { body: 0xff5fa2, trim: 0xffc425, title: "Coffre du jour" },
+  level: { body: 0x45b8ff, trim: 0xffc425, title: "Récompense de niveau" },
+  secret: { body: 0x7b3dff, trim: 0x7dffd9, title: "Cadeau secret" },
+};
+function buildChest(kind) {
+  const look = CHEST_LOOK[kind] || CHEST_LOOK.daily;
+  const g = new THREE.Group();
+  const bodyMat = candy(look.body, { emissive: look.body, emissiveIntensity: 0 });
+  const trim = candy(look.trim, { metalness: 0.7, roughness: 0.18 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.72, 0.9), bodyMat);
+  body.position.y = 0.36;
+  g.add(body);
+  for (const x of [-0.42, 0.42]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.74, 0.93), trim);
+    band.position.set(x, 0.36, 0);
+    g.add(band);
+  }
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.08, 0.94), trim).translateY(0.7));
+  // Couvercle bombé, articulé à l'arrière
+  const lid = new THREE.Group();
+  lid.position.set(0, 0.72, -0.45);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.3, 28, 1, false, 0, Math.PI), bodyMat);
+  top.rotation.z = Math.PI / 2;
+  top.position.z = 0.45;
+  lid.add(top);
+  for (const x of [-0.42, 0.42]) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.47, 0.14, 28, 1, false, 0, Math.PI), trim);
+    b.rotation.z = Math.PI / 2;
+    b.position.set(x, 0, 0.45);
+    lid.add(b);
+  }
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.08), trim);
+  lock.position.set(0, 0, 0.92);
+  lid.add(lock);
+  lid.add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 12), candy(0x221a2a)).rotateX(Math.PI / 2).translateY(0.02).translateZ(0.96));
+  g.add(lid);
+  // Lumière qui s'échappe de l'intérieur
+  const light = new THREE.PointLight(0xfff2b0, 0, 6, 1.5);
+  light.position.set(0, 1, 0.2);
+  g.add(light);
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.75, 0.32, 6, 32, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+  );
+  beam.position.y = 3.6;
+  beam.castShadow = false;
+  g.add(beam);
+  g.traverse((o) => o.isMesh && o !== beam && (o.castShadow = true));
+  g.userData = { lid, bodyMat, light, beam, lock };
+  return g;
+}
+const reveal = { t: 0, cur: null, chest: null, item: null, opened: false, happy: false, card: false, nextShake: 0 };
+function startReveal() {
+  if (!save.pending.length) return;
+  clearInterval(G.reviveTimer);
+  if (G.mode !== "menu") toMenu();
+  G.mode = "reveal";
+  show("reveal");
+  nextReveal();
+}
+function nextReveal() {
+  cleanupReveal();
+  const cur = save.pending.shift();
+  persist();
+  if (!cur) {
+    endReveal();
+    return;
+  }
+  const kind = cur.source === "secret" ? "secret" : cur.source === "level" ? "level" : "daily";
+  Object.assign(reveal, { t: 0, cur, opened: false, happy: false, card: false, nextShake: 0.55, kind });
+  reveal.chest = buildChest(kind);
+  reveal.chest.position.set(0.95, 4, 0.9);
+  reveal.chest.rotation.y = 0;
+  world.scene.add(reveal.chest);
+  $("#revealTitle").textContent = CHEST_LOOK[kind].title;
+  $("#revealHint").classList.remove("hidden");
+  $("#revealCard").classList.add("hidden");
+}
+function rarityOf(cur) {
+  if (!cur.slot) return RARITY.commun;
+  return RARITY[OUTFITS[cur.slot][cur.id].rarity] || RARITY.commun;
+}
+function openRevealChest() {
+  const { chest, cur } = reveal;
+  reveal.opened = true;
+  const rarity = rarityOf(cur);
+  chest.userData.beam.material.color.set(rarity.color);
+  chest.userData.light.color.set(rarity.color);
+  Sfx.play("pop", { volume: 0.9 });
+  Sfx.play("fanfare", { volume: 0.7, delay: 0.05 });
+  Sfx.play("sparkle", { volume: 0.6, delay: 0.15 });
+  world.confetti(chest.position.x, 1.2, chest.position.z, 140);
+  world.burst(chest.position.x, 0.9, chest.position.z, new THREE.Color(rarity.color).getHex(), 60, 8);
+  world.shake(0.25);
+  flash(rarity.color);
+  if (cur.coins) save.coins += cur.coins;
+  // Objet qui sort du coffre
+  let item;
+  if (cur.slot) {
+    item = buildItem(cur.slot, cur.id);
+    item.scale.setScalar(3);
+  } else {
+    item = new THREE.Group();
+    for (let i = 0; i < 7; i += 1) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.07, 24), candy(0xffc21a, { metalness: 0.75, roughness: 0.18 }));
+      c.position.set((i % 3 - 1) * 0.1, i * 0.075, (i % 2) * 0.05);
+      item.add(c);
+    }
+  }
+  item.position.set(chest.position.x, 0.8, chest.position.z);
+  world.scene.add(item);
+  reveal.item = item;
+  persist();
+}
+function showRevealCard() {
+  const { cur } = reveal;
+  reveal.card = true;
+  reveal.happy = true;
+  const rarity = rarityOf(cur);
+  const card = $("#revealCard");
+  card.style.setProperty("--r", rarity.color);
+  $("#revealRarity").textContent = cur.slot ? rarity.name : "Croquettes";
+  $("#revealName").textContent = cur.slot ? OUTFITS[cur.slot][cur.id].name : `+${cur.coins} croquettes`;
+  $("#revealExtra").textContent = cur.slot ? `${SLOT_NAMES[cur.slot]}${cur.coins ? ` · +${cur.coins} croquettes` : ""}` : "Pour la boutique !";
+  $("#revealWear").classList.toggle("hidden", !cur.slot);
+  $("#revealHint").classList.add("hidden");
+  card.classList.remove("hidden");
+  Sfx.play("coin", { rate: 0.7, volume: 0.5 });
+  refreshMenu();
+}
+function updateReveal(dt) {
+  const { chest, item } = reveal;
+  if (!chest) return;
+  reveal.t += dt;
+  const t = reveal.t;
+  const d = chest.userData;
+  if (!reveal.opened) {
+    // Le coffre tombe, rebondit, puis tremble de plus en plus fort
+    const fall = Math.min(1, t / 0.45);
+    chest.position.y = t < 0.45 ? 4 * (1 - fall * fall) : Math.abs(Math.sin((t - 0.45) * 9)) * 0.25 * Math.exp(-(t - 0.45) * 6);
+    if (t > 0.45 && t < 0.5) Sfx.play("land", { volume: 0.5, rate: 0.8 });
+    const shakes = [0.7, 1.25, 1.7];
+    let amp = 0;
+    shakes.forEach((s, i) => {
+      if (t > s && t < s + 0.32) amp = 0.06 + i * 0.07;
+    });
+    if (t > 2.0) amp = 0.25;
+    chest.rotation.z = Math.sin(t * 55) * amp;
+    chest.position.x = Math.sin(t * 47) * amp * 0.4;
+    d.lid.rotation.x = -Math.abs(Math.sin(t * 30)) * amp * 0.8;
+    const glow = Math.min(1, Math.max(0, (t - 0.6) / 1.6));
+    d.bodyMat.emissiveIntensity = glow * 0.35;
+    d.light.intensity = glow * 3;
+    if (amp > 0 && t > reveal.nextShake) {
+      reveal.nextShake = t + 0.09;
+      Sfx.play("rattle", { volume: 0.5 + amp, rate: 0.8 + amp * 2 });
+      world.burst(chest.position.x, 0.75, chest.position.z, 0xffffff, 3, 2.5);
+    }
+    if (t > 2.25) {
+      chest.scale.set(1.18, 0.8, 1.18);
+      if (t > 2.35) {
+        chest.scale.set(1, 1, 1);
+        chest.rotation.z = 0;
+        openRevealChest();
+      }
+    }
+  } else {
+    const k = t - 2.35;
+    d.lid.rotation.x = Math.max(-2.1, d.lid.rotation.x - dt * 14);
+    d.beam.material.opacity = Math.min(0.16, k * 0.5) * (0.85 + Math.sin(t * 8) * 0.15);
+    d.beam.scale.set(1 + Math.sin(t * 3) * 0.05, Math.min(1, k * 3), 1 + Math.sin(t * 3) * 0.05);
+    d.beam.rotation.y += dt;
+    d.light.intensity = 1.5;
+    if (item) {
+      const rise = Math.min(1, k / 0.9);
+      item.position.y = 0.8 + (1 - (1 - rise) ** 3) * 1.25 + Math.sin(t * 2.5) * 0.06;
+      item.rotation.y += dt * (3 - rise * 2);
+      if (Math.random() < 0.3) world.burst(item.position.x, item.position.y, item.position.z, 0xffffff, 1, 1.5);
+    }
+    if (k > 1 && !reveal.card) showRevealCard();
+  }
+}
+function cleanupReveal() {
+  if (reveal.chest) world.scene.remove(reveal.chest);
+  if (reveal.item) world.scene.remove(reveal.item);
+  reveal.chest = null;
+  reveal.item = null;
+}
+function endReveal() {
+  cleanupReveal();
+  G.mode = "menu";
+  show("menu");
+  applyLook();
+  refreshMenu();
+}
+// Toucher l'écran pendant que le coffre tremble l'ouvre tout de suite
+$("#reveal").addEventListener("pointerdown", (e) => {
+  if (e.target.closest("button")) return;
+  if (!reveal.opened && reveal.t > 0.5 && reveal.t < 2.0) reveal.t = 2.0;
+});
+$("#revealOk").addEventListener("click", () => {
+  Sfx.play("click", { volume: 0.4 });
+  nextReveal();
+});
+$("#revealWear").addEventListener("click", () => {
+  const { cur } = reveal;
+  if (cur && cur.slot) {
+    save.wear[cur.slot] = cur.id;
+    persist();
+    applyLook();
+    Sfx.play("coin", { rate: 0.9, volume: 0.5 });
+    world.confetti(0, 1.5, 0, 50);
+  }
+  nextReveal();
+});
+
+// Coffre du jour : croquettes + un objet tiré au sort selon sa rareté
 function openChestScreen() {
-  const ready = save.chestDay !== today();
-  $("#chestIcon").className = ready ? "ready" : "";
-  $("#chestText").textContent = ready ? "Un coffre plein de surprises t'attend !" : "Reviens demain pour un nouveau coffre 🎁";
-  $("#chestOpen").classList.toggle("hidden", !ready);
+  if (save.pending.length) {
+    startReveal();
+    return;
+  }
+  if (save.chestDay !== today()) {
+    save.chestDay = today();
+    const coins = 60 + Math.floor(Math.random() * 7) * 40;
+    const item = rollChestItem();
+    if (item) {
+      grantItem(item.slot, item.id, "daily");
+      save.pending[save.pending.length - 1].coins = coins;
+    } else save.pending.push({ coins: coins * 2, source: "daily" });
+    if (Math.random() < 0.3) save.startShield += 1;
+    persist();
+    startReveal();
+    return;
+  }
+  $("#chestIcon").className = "";
+  $("#chestText").textContent = "Reviens demain pour un nouveau coffre 🎁";
+  $("#chestOpen").classList.add("hidden");
   show("chest");
 }
-$("#chestOpen").onclick = () => {
-  if (save.chestDay === today()) return;
-  save.chestDay = today();
-  const coins = 60 + Math.floor(Math.random() * 7) * 40;
-  save.coins += coins;
-  let text = `+${coins} croquettes !`;
-  if (Math.random() < 0.35) {
-    save.startShield += 1;
-    text += " Et un bouclier de départ 🫧 !";
-  }
-  persist();
-  $("#chestIcon").className = "open";
-  $("#chestText").textContent = text;
-  $("#chestOpen").classList.add("hidden");
-  world.confetti(0, 1.5, -0.5, 90);
-  Sfx.play("destroy", { rate: 1.5, volume: 0.5 });
-  Sfx.play("coin", { rate: 0.8, volume: 0.6, delay: 0.15 });
-  refreshMenu();
-};
+$("#chestOpen").onclick = openChestScreen;
 
 // --- Cinématique -------------------------------------------------------------------------
 const video = $("#cinematic");
@@ -1390,6 +1759,7 @@ click("#quitBtn", toMenu);
 $("#againBtn").addEventListener("click", startRun);
 click("#menuBtn", toMenu);
 $("#reviveBtn").addEventListener("click", revive);
+click("#giftsBtn", startReveal);
 click("#soundBtn", () => {
   save.sound = !save.sound;
   Sfx.setEnabled(save.sound);
@@ -1425,5 +1795,5 @@ if ("serviceWorker" in navigator && !location.search.includes("debug")) navigato
 
 // Mode test (?debug)
 if (location.search.includes("debug")) {
-  window.kichta = { G, P, POWER, save, tick, LANE, laneX, addObject, addPower, coinLine, boss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist };
+  window.kichta = { G, P, POWER, save, tick, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist };
 }

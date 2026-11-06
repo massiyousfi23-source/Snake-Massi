@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="candy.css?v=b1">
+  <link rel="stylesheet" href="candy.css?v=b2">
   <link rel="modulepreload" href="../vendor/three.core.min.js">
   <link rel="modulepreload" href="../vendor/three.module.min.js">
   <title>Kichta Run</title>
@@ -101,6 +101,7 @@
         <div><small>RECORD</small><strong id="overBest">0</strong></div>
         <div><small>GAGNÉ</small><strong id="overCoins">0</strong></div>
       </div>
+      <button id="giftsBtn" class="big gifts hidden">🎁 OUVRIR TES CADEAUX <b id="giftsCount">1</b></button>
       <button id="reviveBtn" class="big revive">CONTINUER <span class="cost"><i class="coin"></i><span id="reviveCost">50</span></span><b id="reviveTimer"></b></button>
       <ul id="overMissions" class="missions small"></ul>
       <div class="row">
@@ -109,11 +110,22 @@
       </div>
     </section>
 
+    <section id="reveal" class="screen hidden">
+      <h2 id="revealTitle">Coffre</h2>
+      <p id="revealHint">Touche l'écran pour l'ouvrir plus vite !</p>
+      <div id="revealCard" class="hidden">
+        <small id="revealRarity">Rare</small>
+        <strong id="revealName">Objet</strong>
+        <span id="revealExtra"></span>
+        <div class="row"><button id="revealOk" class="soft">Plus tard</button><button id="revealWear" class="big">PORTER</button></div>
+      </div>
+    </section>
+
     <div id="banner" class="hidden"></div>
     <div id="flash"></div>
-    <video id="cinematic" class="hidden" playsinline preload="none"><source src="assets/kichta-ending.mp4?v=fete" type="video/mp4"></video>
+    <video id="cinematic" class="hidden" playsinline preload="none"><source src="assets/kichta-ending.mp4?v=bonbon" type="video/mp4"></video>
     <button id="skipVideo" class="hidden">Passer ▶▶</button>
   </div>
-  <script type="module" src="main.js?v=b1"></script>
+  <script type="module" src="main.js?v=b2"></script>
 </body>
 </html>

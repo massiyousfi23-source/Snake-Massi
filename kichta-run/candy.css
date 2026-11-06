@@ -242,3 +242,27 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
   #controls button { height: 64px; }
   .menu-grid .ico { font-size: 22px; }
 }
+
+/* Cérémonie d'ouverture des coffres */
+#reveal { justify-content: space-between; pointer-events: auto; background: radial-gradient(circle at 50% 62%, rgba(255, 255, 255, 0) 30%, rgba(90, 20, 80, .45)); }
+#revealTitle { margin: 4vh 0 0; font-size: clamp(34px, 9vw, 56px); color: #fff; -webkit-text-stroke: 3px #e0458b; paint-order: stroke fill; text-shadow: 0 5px 0 #b8336f, 0 12px 24px rgba(140, 30, 90, .4); text-align: center; }
+#revealHint { color: #fff; font-weight: 700; font-size: 18px; text-align: center; text-shadow: 0 2px 0 #b8336f; animation: bob 1.2s infinite; margin-bottom: 6vh; }
+#revealCard { width: min(92vw, 420px); background: #fff; border-radius: 28px; padding: 16px 18px 18px; text-align: center; box-shadow: 0 0 0 5px var(--r), 0 0 40px var(--r), 0 12px 30px rgba(80, 20, 70, .35); animation: pop .5s ease; display: flex; flex-direction: column; gap: 6px; align-items: center; margin-bottom: 2vh; }
+#revealRarity { background: var(--r); color: #fff; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 3px 14px; border-radius: 99px; }
+#revealName { font-size: clamp(24px, 7vw, 32px); color: var(--ink); }
+#revealExtra { color: #a0608c; font-weight: 600; }
+#revealCard .row { margin-top: 8px; }
+#revealCard .big { font-size: 22px; padding: 12px 30px 14px; }
+.gifts { background: linear-gradient(#ffe066, #ffbf1f 55%, #e08a00) !important; box-shadow: 0 6px 0 #9e5a00, 0 12px 22px rgba(160, 90, 0, .35), inset 0 3px 0 rgba(255, 255, 255, .55) !important; font-size: 20px !important; padding: 13px 26px 16px !important; animation: glow .6s infinite alternate; }
+.gifts b { background: #ff3d55; border-radius: 99px; padding: 0 9px; margin-left: 4px; }
+
+/* Boutique : rareté, objets verrouillés, mondes */
+.item { position: relative; border: 3px solid transparent; }
+.item .rar { position: absolute; top: 6px; left: 8px; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #fff; background: var(--r, #8fd8ff); padding: 1px 7px; border-radius: 99px; }
+.item[style*="--r"] { border-color: color-mix(in srgb, var(--r) 45%, transparent); }
+.item.locked .icon { filter: grayscale(.5); opacity: .8; }
+.item .vint { color: #8a5a2a; font-weight: 700; }
+.world-swatch { width: 64px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; background: linear-gradient(var(--a) 0 45%, var(--b) 45% 60%, var(--c) 60%); box-shadow: inset 0 -4px 6px rgba(0, 0, 0, .2), inset 0 3px 3px rgba(255, 255, 255, .5); }
+#shopTabs { max-width: 760px; }
+
+@keyframes bob { 50% { transform: translateY(-5px); } }

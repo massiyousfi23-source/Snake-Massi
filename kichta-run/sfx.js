@@ -71,9 +71,80 @@ export function unlock() {
     wet.gain.value = 0.16;
     reverb.connect(wet).connect(master);
     Object.entries(FILES).forEach(([name, url]) => load(name, url));
+    synthesize();
     Object.entries(MUSIC).forEach(([name, url]) => load(`music:${name}`, url));
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
+}
+
+// Sons fabriqués directement : crachat de chat, roulement du coffre,
+// fanfare de récompense et scintillement.
+function synthesize() {
+  const sr = ctx.sampleRate;
+  const make = (seconds, fn) => {
+    const n = Math.floor(sr * seconds);
+    const buffer = ctx.createBuffer(1, n, sr);
+    const d = buffer.getChannelData(0);
+    fn(d, n);
+    return buffer;
+  };
+  // Crachat « khhhh ! » : souffle aigu filtré qui monte puis claque
+  buffers.hiss = make(1.1, (d, n) => {
+    let a = 0;
+    let b = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const white = Math.random() * 2 - 1;
+      a = a * 0.55 + white * 0.45;
+      b = white - a;
+      const env = Math.min(1, t / 0.04) * (t < 0.75 ? 1 - t * 0.5 : Math.max(0, (1.1 - t) / 0.35) * 0.6);
+      const spit = t > 0.72 && t < 0.8 ? (Math.random() * 2 - 1) * 1.4 : 0;
+      d[i] = (b * 0.9 + a * 0.25) * env * (0.8 + 0.2 * Math.sin(t * 90)) + spit * Math.exp(-(t - 0.72) * 40);
+    }
+  });
+  // Roulement pendant que le coffre tremble
+  buffers.rattle = make(0.12, (d, n) => {
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 45) * 0.8 + Math.sin(2 * Math.PI * 180 * t) * Math.exp(-t * 30) * 0.6;
+    }
+  });
+  // Fanfare : accord majeur brillant qui s'envole
+  buffers.fanfare = make(1.8, (d, n) => {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      let v = 0;
+      notes.forEach((f, k) => {
+        const start = k * 0.07;
+        if (t > start) {
+          const tt = t - start;
+          v += (Math.sin(2 * Math.PI * f * tt) + 0.3 * Math.sin(4 * Math.PI * f * tt)) * Math.exp(-tt * 1.6) * 0.16;
+        }
+      });
+      d[i] = v;
+    }
+  });
+  // Scintillement magique
+  buffers.sparkle = make(1.2, (d, n) => {
+    for (let k = 0; k < 18; k += 1) {
+      const f = 1800 + Math.random() * 2600;
+      const start = Math.floor(Math.random() * n * 0.7);
+      for (let i = start; i < n; i += 1) {
+        const tt = (i - start) / sr;
+        d[i] += Math.sin(2 * Math.PI * f * tt) * Math.exp(-tt * 14) * 0.12;
+      }
+    }
+  });
+  // Explosion douce de l'ouverture
+  buffers.pop = make(0.6, (d, n) => {
+    let lp = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      lp = lp * 0.9 + (Math.random() * 2 - 1) * 0.1;
+      d[i] = lp * 6 * Math.exp(-t * 7) + Math.sin(2 * Math.PI * (90 - t * 60) * t) * Math.exp(-t * 9) * 0.8;
+    }
+  });
 }
 
 export function setEnabled(on) {
