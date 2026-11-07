@@ -210,6 +210,10 @@ export const OUTFITS = {
     couronne: { name: "Couronne royale", icon: "👑", unlock: "level", level: 8, rarity: "legendaire" },
     diamants: { name: "Couronne de diamants", icon: "💎", unlock: "level", level: 10, rarity: "legendaire" },
     aureole: { name: "Auréole arc-en-ciel", icon: "🌈", unlock: "level", level: 12, rarity: "mythique" },
+    // Récompenses des boss
+    toque: { name: "Toque de chef pâtée", icon: "👨‍🍳", unlock: "boss", stage: 2, rarity: "epique" },
+    sherif: { name: "Chapeau de shérif", icon: "🤠", unlock: "boss", stage: 3, rarity: "legendaire" },
+    champion: { name: "Couronne de championne", icon: "🏆", unlock: "boss", stage: 4, rarity: "mythique" },
     // Coffres
     noel: { name: "Bonnet de Noël", icon: "🎅", unlock: "chest", rarity: "rare" },
     lapin: { name: "Oreilles de lapin", icon: "🐰", unlock: "chest", rarity: "rare" },
@@ -411,6 +415,39 @@ function buildHat(kind) {
     g.add(brim, mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.02, 32), m));
     g.add(mesh(new THREE.CylinderGeometry(0.252, 0.252, 0.05, 32, 1, true), candy(0x111111), 1, [0, 0.03, 0]));
     g.position.set(0, 0.33, -0.02);
+  } else if (kind === "toque") {
+    const white = candy(0xffffff, { roughness: 0.6, clearcoat: 0.3 });
+    g.add(mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.16, 28), white, 1, [0, 0.08, 0]));
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i / 6) * Math.PI * 2;
+      g.add(mesh(GEO.sphere, white, 0.15, [Math.cos(a) * 0.15, 0.3, Math.sin(a) * 0.15]));
+    }
+    g.add(mesh(GEO.sphere, white, 0.18, [0, 0.36, 0]));
+    g.add(mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.04, 28, 1, true), candy(0xff5fa2), 1, [0, 0.05, 0]));
+    g.position.set(0, 0.33, -0.02);
+  } else if (kind === "sherif") {
+    const leather = candy(0xe0b45a, { roughness: 0.4, clearcoat: 0.6, metalness: 0.2 });
+    g.add(mesh(new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), leather, [0.27, 0.3, 0.24]));
+    const brim = mesh(new THREE.TorusGeometry(0.37, 0.1, 10, 40), leather, [1, 1, 0.35]);
+    brim.rotation.x = Math.PI / 2;
+    g.add(brim, mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.02, 40), leather));
+    g.add(mesh(new THREE.CylinderGeometry(0.272, 0.272, 0.06, 32, 1, true), candy(0x5a2a10), 1, [0, 0.04, 0]));
+    g.add(at(star(0.08, 0.035, 0.015, candy(0xffd23f, { metalness: 0.9, roughness: 0.1, emissive: 0xffa000, emissiveIntensity: 0.3 })), 0, 0.12, 0.25));
+    g.position.set(0, 0.32, -0.02);
+    g.rotation.x = -0.1;
+  } else if (kind === "champion") {
+    const gold = candy(0xffc425, { metalness: 0.85, roughness: 0.12, emissive: 0xff9a00, emissiveIntensity: 0.15 });
+    g.add(mesh(new THREE.CylinderGeometry(0.23, 0.25, 0.16, 32, 1, true), gold));
+    for (let i = 0; i < 5; i += 1) {
+      const a = (i / 5) * Math.PI * 2;
+      g.add(at(star(0.07, 0.03, 0.02, gold), Math.cos(a) * 0.24, 0.17, Math.sin(a) * 0.24));
+      g.add(mesh(new THREE.OctahedronGeometry(0.04), candy([0xff3d6e, 0x3dd6ff, 0x7dff6a, 0xb48cff, 0xffffff][i], { roughness: 0, emissive: 0xffffff, emissiveIntensity: 0.2 }), 1, [Math.cos(a) * 0.255, 0.04, Math.sin(a) * 0.255]));
+    }
+    const big = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), candy(0xff2d55, { roughness: 0, emissive: 0xff2d55, emissiveIntensity: 0.5 }));
+    big.position.set(0, 0.36, 0);
+    big.userData.spin = true;
+    g.add(big);
+    g.position.set(0, 0.42, 0);
   } else if (kind === "aureole") {
     const halo = new THREE.Mesh(
       new THREE.TorusGeometry(0.3, 0.045, 14, 48),

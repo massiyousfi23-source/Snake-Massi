@@ -3,9 +3,10 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b3";
-import { createToon, dressToon, animateToon, flashToon, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b3";
-import * as Sfx from "./sfx.js?v=b3";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b4";
+import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b4";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate } from "./bosses.js?v=b4";
+import * as Sfx from "./sfx.js?v=b4";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -29,6 +30,8 @@ const DEFAULT_SAVE = {
   chestDay: "",
   startShield: 0,
   cinematic: false,
+  stage: 1,
+  cinemas: [],
   sound: true,
   tutorial: false,
   runs: 0,
@@ -46,6 +49,8 @@ function loadSave() {
   return structuredClone(DEFAULT_SAVE);
 }
 const save = loadSave();
+// Ancienne sauvegarde : Pucci déjà battue = première cinématique débloquée
+if (save.cinematic && !save.cinemas.length) save.cinemas.push(1);
 function persist() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -68,7 +73,7 @@ const MISSION_TYPES = [
   { id: "blocks", stat: "blocks", base: 3, step: 3, text: (n) => `Tape ${n} blocs « ? »` },
   { id: "wagons", stat: "wagons", base: 3, step: 3, text: (n) => `Cours sur le toit de ${n} wagons` },
   { id: "near", stat: "near", base: 4, step: 4, text: (n) => `Fais ${n} esquives de justesse` },
-  { id: "pucci", stat: "pucci", base: 1, step: 0.5, text: (n) => `Bats Pucci ${n} fois` },
+  { id: "pucci", stat: "pucci", base: 1, step: 0.5, text: (n) => (n > 1 ? `Bats ${n} boss` : "Bats un boss") },
   { id: "doubles", stat: "doubles", base: 5, step: 5, text: (n) => `Fais ${n} doubles sauts` },
 ];
 function roundGoal(n) {
@@ -123,21 +128,6 @@ magnetRing.rotation.x = Math.PI / 2;
 magnetRing.position.y = 0.1;
 magnetRing.visible = false;
 kichta.add(magnetRing);
-
-// Pucci sur son nuage
-const boss = new THREE.Group();
-const pucci = createToon("pucci");
-pucci.scale.setScalar(2.5);
-pucci.rotation.y = 0;
-boss.add(pucci);
-const cloudMat = candy(0xffffff, { roughness: 0.55, clearcoat: 0.3 });
-for (let i = 0; i < 7; i += 1) {
-  const s = new THREE.Mesh(new THREE.SphereGeometry(0.7 + (i % 3) * 0.2, 18, 12), cloudMat);
-  s.position.set((i - 3) * 0.55, -0.1 + (i % 2) * 0.15, (i % 3) * 0.3 - 0.3);
-  boss.add(s);
-}
-boss.visible = false;
-world.scene.add(boss);
 
 // ---------------------------------------------------------------------------
 // État de la partie
@@ -556,26 +546,117 @@ function activatePower(type) {
 }
 
 // ---------------------------------------------------------------------------
-// Boss : Pucci revient régulièrement sur son nuage
+// Les 4 niveaux : chacun a son boss et sa cinématique
 // ---------------------------------------------------------------------------
+const LEVELS = [
+  { n: 1, boss: "pucci", name: "Pucci", short: "PUCCI", hp: 3, title: "PUCCI ATTAQUE !", hint: "Attrape les poissons-fusées 🐟 pour la toucher", win: "PUCCI VAINCUE !", video: "assets/cine-1.mp4", cine: "La fête des croquettes" },
+  { n: 2, boss: "pucci2", name: "Pucci revient", short: "PUCCI", hp: 4, title: "PUCCI REVIENT !", hint: "Elle est furieuse… attrape les poissons 🐟", win: "PUCCI K.-O. !", video: "assets/cine-2.mp4", cine: "La chambre secrète", reward: { slot: "hat", id: "toque" } },
+  { n: 3, boss: "dog", name: "Rocky le chien", short: "ROCKY", hp: 4, title: "ROCKY LE CHIEN !", hint: "Saute les os 🦴 et attrape les poissons 🐟", win: "ROCKY EST DOMPTÉ !", video: "assets/cine-3.mp4", cine: "Le rodéo", reward: { slot: "hat", id: "sherif" } },
+  { n: 4, boss: "hedgehog", name: "Pikou le hérisson", short: "PIKOU", hp: 5, title: "PIKOU, LE BOSS FINAL !", hint: "Esquive 3 piques pour débloquer ton arme secrète", win: "PIKOU EST VAINCU !", video: "assets/cine-4.mp4", cine: "Les brochettes", reward: { slot: "hat", id: "champion" } },
+];
+const currentLevel = () => LEVELS[Math.min(LEVELS.length, save.stage) - 1];
+
+// Les boss : Pucci sur son nuage (normale et bandée), Rocky et Pikou au sol
+const cloud = new THREE.Group();
+const cloudMat = candy(0xffffff, { roughness: 0.55, clearcoat: 0.3 });
+for (let i = 0; i < 7; i += 1) {
+  const s = new THREE.Mesh(new THREE.SphereGeometry(0.7 + (i % 3) * 0.2, 18, 12), cloudMat);
+  s.position.set((i - 3) * 0.55, -0.1 + (i % 2) * 0.15, (i % 3) * 0.3 - 0.3);
+  cloud.add(s);
+}
+const pucci = createToon("pucci");
+pucci.scale.setScalar(2.5);
+const pucciHurt = addInjuries(createToon("pucci"));
+pucciHurt.scale.setScalar(2.5);
+const dog = createDog();
+dog.scale.setScalar(1.7);
+const hog = createHedgehog();
+hog.scale.setScalar(1.8);
+const boss = new THREE.Group();
+boss.add(cloud, pucci, pucciHurt, dog, hog);
+boss.visible = false;
+world.scene.add(boss);
+const BOSS_MODEL = { pucci, pucci2: pucciHurt, dog, hedgehog: hog };
+const bossModel = () => BOSS_MODEL[G.boss.kind];
+world.OBSTACLES.bone = createBone;
+world.OBSTACLES.spike = createSpike;
+
+// Patins de Kichta (arme secrète du niveau 4)
+const skates = [];
+function setSkates(on) {
+  if (on && !skates.length) {
+    kichta.userData.legs.forEach((leg) => {
+      const s = createSkate();
+      s.position.set(0, -0.37, 0.03);
+      leg.add(s);
+      skates.push(s);
+    });
+  }
+  skates.forEach((s) => (s.visible = on));
+  G.skates = on;
+}
+
 function startBoss() {
-  const level = (save.lifetime.pucci || 0) + 1;
-  G.boss = { hp: 3, t: 0, throwT: 2.2, fishT: 1.5, x: 0, targetX: 0, rate: Math.max(0.75, 1.7 - level * 0.12), leaving: 0, defeated: false, hurt: 0 };
+  const level = currentLevel();
+  const kind = save.stage > LEVELS.length ? pick(LEVELS).boss : level.boss;
+  const hard = Math.max(0, save.stage - LEVELS.length) + (save.lifetime.pucci || 0) * 0.15;
+  G.boss = {
+    kind,
+    level: save.stage > LEVELS.length ? LEVELS.find((l) => l.boss === kind) : level,
+    hp: (LEVELS.find((l) => l.boss === kind) || level).hp,
+    t: 0,
+    throwT: 2.4,
+    fishT: 1.5,
+    x: 0,
+    targetX: 0,
+    rate: Math.max(0.7, (kind === "pucci" ? 1.7 : kind === "pucci2" ? 1.3 : kind === "dog" ? 1.25 : 1.15) - hard * 0.1),
+    leaving: 0,
+    defeated: false,
+    hurt: 0,
+    dodged: 0,
+  };
+  Object.entries(BOSS_MODEL).forEach(([k, m]) => (m.visible = k === kind));
+  cloud.visible = kind === "pucci" || kind === "pucci2";
   boss.visible = true;
-  boss.position.set(0, 9, P.z - 40);
+  boss.rotation.set(0, 0, 0);
+  boss.position.set(0, cloud.visible ? 9 : 0, P.z - 40);
+  setSkates(false);
+  $("#bossBar span").textContent = `${{ pucci: "😾", pucci2: "😾", dog: "🐶", hedgehog: "🦔" }[kind]} ${G.boss.level.short}`;
+  $("#bossBar div").innerHTML = "<i></i>".repeat(G.boss.hp);
   $("#bossBar").classList.remove("hidden");
   updateBossBar();
-  banner("PUCCI ATTAQUE !", "Attrape les poissons-fusées 🐟 pour la toucher");
-  // Face à face : les deux chats crachent, poils hérissés
+  banner(G.boss.level.title, G.boss.level.hint);
+  // Face à face : Kichta crache, poils hérissés
   G.hissT = 2.8;
-  Sfx.play("hiss", { volume: 0.9, rate: 1.05, wet: true });
-  Sfx.play("hiss", { volume: 0.8, rate: 0.82, delay: 0.7 });
-  Sfx.play("meow", { volume: 0.7, rate: 0.85, delay: 1.5 });
+  Sfx.play("hiss", { volume: 0.9, rate: 1.05 });
+  if (kind === "dog") {
+    Sfx.play("bark", { volume: 0.9, delay: 0.6 });
+    Sfx.play("bark", { volume: 0.9, rate: 0.9, delay: 0.95 });
+  } else if (kind === "hedgehog") {
+    Sfx.play("squeak", { volume: 0.8, delay: 0.6 });
+  } else {
+    Sfx.play("hiss", { volume: 0.8, rate: 0.82, delay: 0.7 });
+    Sfx.play("meow", { volume: 0.7, rate: 0.85, delay: 1.5 });
+  }
   world.shake(0.25);
   Sfx.music("boss");
 }
 function updateBossBar() {
   [...$("#bossBar").querySelectorAll("i")].forEach((el, i) => el.classList.toggle("off", !G.boss || i >= G.boss.hp));
+}
+function hurtBoss(target) {
+  const b = G.boss;
+  if (!b || b.leaving) return;
+  b.hp -= 1;
+  b.hurt = 0.5;
+  updateBossBar();
+  world.burst(target.x, target.y, target.z, 0xff5fa2, 40, 9);
+  world.shake(0.35);
+  Sfx.play("destroy", { volume: 0.7, rate: 1.2 });
+  if (b.kind === "dog") Sfx.play("bark", { volume: 0.8, rate: 1.3 });
+  else if (b.kind === "hedgehog") Sfx.play("squeak", { volume: 0.8, rate: 0.8 });
+  else Sfx.play("meow", { volume: 0.7, rate: 1.1 + Math.random() * 0.2 });
+  if (b.hp <= 0) endBoss(true);
 }
 function endBoss(defeated) {
   const b = G.boss;
@@ -583,71 +664,101 @@ function endBoss(defeated) {
   b.leaving = 1;
   b.defeated = defeated;
   $("#bossBar").classList.add("hidden");
-  G.nextBossAt = G.dist + 2000;
+  G.nextBossAt = G.dist + 1600;
+  setSkates(false);
   if (defeated) {
     statWithMissions("pucci");
-    const reward = 150 * save.level;
-    G.score += 1000 * multiplier();
-    banner("PUCCI VAINCUE !", `+${reward} croquettes · +${1000 * multiplier()} points`);
+    const level = b.level;
+    const reward = 150 * level.n * Math.max(1, save.level);
+    G.score += 1000 * level.n * multiplier();
     G.coins += reward;
-    world.confetti(boss.position.x, boss.position.y, boss.position.z, 160);
+    banner(level.win, `+${reward} croquettes · Niveau ${level.n} terminé !`);
+    world.confetti(boss.position.x, boss.position.y + 1, boss.position.z, 160);
     world.shake(0.6);
     Sfx.play("destroy", { volume: 0.9 });
-    Sfx.play("meow", { volume: 1, rate: 0.68, delay: 0.1 });
-    // Pluie de croquettes devant Kichta
+    Sfx.play("fanfare", { volume: 0.6, delay: 0.2 });
     for (let i = 0; i < 36; i += 1) addCoin(laneX(pick([-1, 0, 1])), 0.75, P.z - 25 - i * 1.6);
-    // La cinématique se joue à chaque victoire contre Pucci
+    // Niveau terminé : cinématique, récompense, niveau suivant
+    if (!save.cinemas.includes(level.n)) save.cinemas.push(level.n);
+    if (level.reward && !owns(level.reward.slot, level.reward.id)) grantItem(level.reward.slot, level.reward.id, "level");
+    const finished = save.stage === LEVELS.length;
+    if (save.stage <= LEVELS.length && level.n === save.stage) save.stage += 1;
     save.cinematic = true;
     persist();
-    setTimeout(() => G.mode === "run" && playCinematic(true), 1800);
+    clearTimeout(G.cineTimer);
+    G.cineTimer = setTimeout(() => G.mode === "run" && playCinematic(level.n, true, finished), 1800);
   } else {
-    banner("Pucci s'enfuit…", "Elle reviendra !");
+    banner(`${b.level.name} s'enfuit…`, "Il reviendra plus loin !");
   }
   Sfx.music("run");
 }
 function updateBoss(dt) {
   const b = G.boss;
   if (!b) return;
+  const model = bossModel();
   b.t += dt;
   b.hurt = Math.max(0, b.hurt - dt);
+  const flying = b.kind === "pucci" || b.kind === "pucci2";
   if (b.leaving > 0) {
     b.leaving += dt;
-    boss.position.y += dt * (b.defeated ? 10 : 6);
+    if (flying || b.defeated) boss.position.y += dt * (b.defeated ? 10 : 6);
     boss.position.z = P.z - 15 - b.leaving * 8;
     boss.rotation.z += dt * (b.defeated ? 12 : 0);
-    animateToon(pucci, G.t, b.defeated ? "hit" : "win");
+    if (flying) animateToon(model, G.t, b.defeated ? "hit" : "win");
+    else if (b.kind === "dog") animateDog(model, G.t, b.defeated ? "dizzy" : "run");
+    else animateHedgehog(model, G.t, b.defeated ? "hurt" : "run");
     if (b.leaving > 3) {
       boss.visible = false;
       G.boss = null;
     }
     return;
   }
-  // Pucci se place au-dessus d'un couloir et vise Kichta
+  // Le boss se place devant un couloir et vise Kichta
   if (Math.random() < dt * 0.6) b.targetX = laneX(pick([-1, 0, 1]));
   b.x += (b.targetX - b.x) * Math.min(1, dt * 2.5);
-  const enterY = Math.max(3.2, 9 - b.t * 4);
-  boss.position.set(b.x, enterY + Math.sin(G.t * 2) * 0.25, P.z - 15);
-  boss.rotation.set(0, 0, Math.sin(G.t * 1.5) * 0.08);
-  animateToon(pucci, G.t, G.hissT > 0.3 ? "hiss" : b.throwT < 0.3 ? "throw" : "idle");
-  flashToon(pucci, b.hurt > 0 ? b.hurt * 3 : 0);
+  if (flying) {
+    const enterY = Math.max(3.2, 9 - b.t * 4);
+    boss.position.set(b.x, enterY + Math.sin(G.t * 2) * 0.25, P.z - 15);
+    boss.rotation.set(0, 0, Math.sin(G.t * 1.5) * 0.08);
+    animateToon(model, G.t, G.hissT > 0.3 ? "hiss" : b.throwT < 0.3 ? "throw" : "idle");
+    flashToon(model, b.hurt > 0 ? b.hurt * 3 : 0);
+  } else {
+    // Rocky et Pikou courent à reculons devant Kichta
+    const enterZ = Math.max(0, 1 - b.t / 1.5);
+    boss.position.set(b.x, 0, P.z - 14 - enterZ * 26);
+    boss.rotation.set(0, 0, 0);
+    if (b.kind === "dog") animateDog(model, G.t, b.hurt > 0 ? "dizzy" : b.barkT > 0 ? "bark" : b.throwT < 0.35 ? "throw" : "run", { speed: G.speed / 12 });
+    else animateHedgehog(model, G.t, b.hurt > 0 ? "hurt" : b.throwT < 0.5 ? "throw" : "run", { speed: G.speed / 12 });
+    model.userData.flash.forEach((m) => m.emissive && m.emissive.setRGB(b.hurt * 2, b.hurt * 0.4, b.hurt * 0.4));
+  }
+  b.barkT = Math.max(0, (b.barkT || 0) - dt);
   if (b.t > 1.5) {
     b.throwT -= dt;
     if (b.throwT <= 0) {
       b.throwT = b.rate * (0.8 + Math.random() * 0.5);
-      throwBomb(Math.random() < 0.55 ? P.lane : pick([-1, 0, 1]));
+      const target = Math.random() < 0.55 ? P.lane : pick([-1, 0, 1]);
+      if (b.kind === "dog") throwBone(target);
+      else if (b.kind === "hedgehog") throwSpikes();
+      else {
+        throwBomb(target);
+        // Pucci, furieuse, lance parfois deux bombes
+        if (b.kind === "pucci2" && Math.random() < 0.45) throwBomb(pick([-1, 0, 1].filter((l) => l !== target)));
+      }
     }
-    b.fishT -= dt;
-    if (b.fishT <= 0) {
-      b.fishT = 2.6 + Math.random() * 1.2;
-      const lane = pick([-1, 0, 1]);
-      const fish = addPower("fish", lane, P.z - 55, 0.9);
-      fish.fish = true;
+    // Poissons-fusées (pas pour Pikou : on le bat avec ses propres piques)
+    if (b.kind !== "hedgehog") {
+      b.fishT -= dt;
+      if (b.fishT <= 0) {
+        b.fishT = 2.6 + Math.random() * 1.2;
+        const fish = addPower("fish", pick([-1, 0, 1]), P.z - 55, 0.9);
+        fish.fish = true;
+      }
     }
   }
-  if (b.t > 38) endBoss(false);
+  if (b.t > (b.kind === "hedgehog" ? 50 : 40)) endBoss(false);
 }
 function throwBomb(lane) {
-  // Elle lance par-dessus sa tête : la bombe atterrit devant Kichta
+  // Lancée par-dessus sa tête : la bombe atterrit devant Kichta
   const landZ = P.z - G.speed * 0.85 - 9;
   const warn = world.acquire("obs-warn", world.OBSTACLES.warn);
   warn.position.set(laneX(lane), 0, landZ);
@@ -656,6 +767,56 @@ function throwBomb(lane) {
   bomb.from = boss.position.clone();
   bomb.warn = warn;
   bomb.mesh.position.copy(bomb.from);
+}
+function throwBone(lane) {
+  // Rocky aboie puis lance un os qui retombe sur la piste
+  G.boss.barkT = 0.5;
+  Sfx.play("bark", { volume: 0.85, rate: 0.95 + Math.random() * 0.2 });
+  const landZ = P.z - G.speed * 0.8 - 8;
+  const warn = world.acquire("obs-warn", world.OBSTACLES.warn);
+  warn.position.set(laneX(lane), 0, landZ);
+  const bone = addObject("bone", lane, landZ);
+  bone.flying = 0.8;
+  bone.from = boss.position.clone().add(new THREE.Vector3(0, 1.6, 0));
+  bone.warn = warn;
+  bone.mesh.position.copy(bone.from);
+}
+function throwSpikes() {
+  // Pikou se gonfle et projette 1 à 3 piques au ras du sol
+  const n = Math.random() < 0.35 ? 2 : 1;
+  const lanes = shuffle([-1, 0, 1]);
+  if (Math.random() < 0.6) lanes.unshift(P.lane);
+  const used = [...new Set(lanes)].slice(0, n);
+  used.forEach((lane) => {
+    const sp = addObject("spike", lane, boss.position.z + 1);
+    sp.vz = 16;
+    sp.spike = true;
+    sp.mesh.position.y = 0.75;
+  });
+  Sfx.play("shot", { volume: 0.4, rate: 0.8 });
+  Sfx.play("squeak", { volume: 0.5, rate: 1.2 });
+}
+function unlockSkates() {
+  setSkates(true);
+  banner("ARME SECRÈTE : LES PATINS ! 🛼", "Fonce sur les piques pour les renvoyer à Pikou !");
+  Sfx.play("fanfare", { volume: 0.7 });
+  Sfx.play("sparkle", { volume: 0.6 });
+  flash("#ffd23f");
+  world.confetti(P.x, 1.5, P.z - 2, 60);
+}
+// Une pique renvoyée par Kichta sur ses patins
+function returnSpike(o) {
+  removeObject(o);
+  P.flip = 0.5;
+  P.vy = Math.max(P.vy, 7);
+  P.grounded = false;
+  Sfx.play("attack", { volume: 0.6, rate: 0.9 });
+  Sfx.play("meow", { volume: 0.6, rate: 1.6 });
+  world.burst(P.x, P.y + 0.8, P.z, 0xffd23f, 20, 5);
+  const mesh = world.acquire("obs-spike-0", createSpike);
+  mesh.position.set(P.x, P.y + 1, P.z - 0.5);
+  G.rockets.push({ mesh, t: 0, from: mesh.position.clone(), spike: true });
+  toast("Renvoyée ! 🛼", "power");
 }
 function launchRocket() {
   const mesh = world.makePower("fish");
@@ -666,26 +827,18 @@ function launchRocket() {
 function updateRockets(dt) {
   for (let i = G.rockets.length - 1; i >= 0; i -= 1) {
     const r = G.rockets[i];
-    r.t += dt / 0.55;
-    const target = boss.position.clone().add(new THREE.Vector3(0, 1, 0));
+    r.t += dt / (r.spike ? 0.4 : 0.55);
+    const target = boss.position.clone().add(new THREE.Vector3(0, G.boss && (G.boss.kind === "dog" || G.boss.kind === "hedgehog") ? 0.9 : 1, 0));
     const pos = r.from.clone().lerp(target, Math.min(1, r.t));
-    pos.y += Math.sin(Math.min(1, r.t) * Math.PI) * 2.5;
+    pos.y += Math.sin(Math.min(1, r.t) * Math.PI) * (r.spike ? 1 : 2.5);
     r.mesh.position.copy(pos);
     r.mesh.lookAt(target);
-    world.burst(pos.x, pos.y, pos.z, 0xff8a3d, 2, 1.5);
+    if (r.spike) r.mesh.rotateY(Math.PI);
+    world.burst(pos.x, pos.y, pos.z, r.spike ? 0xffd23f : 0xff8a3d, 2, 1.5);
     if (r.t >= 1) {
       world.release(r.mesh);
       G.rockets.splice(i, 1);
-      if (G.boss && !G.boss.leaving) {
-        G.boss.hp -= 1;
-        G.boss.hurt = 0.5;
-        updateBossBar();
-        world.burst(target.x, target.y, target.z, 0xff5fa2, 40, 9);
-        world.shake(0.35);
-        Sfx.play("destroy", { volume: 0.7, rate: 1.2 });
-        Sfx.play("meow", { volume: 0.7, rate: 1.1 + Math.random() * 0.2 });
-        if (G.boss.hp <= 0) endBoss(true);
-      }
+      hurtBoss(target);
     }
   }
 }
@@ -713,6 +866,7 @@ function worldRotation() {
 }
 
 function startRun() {
+  clearTimeout(G.cineTimer);
   Sfx.unlock();
   Sfx.play("click", { volume: 0.5 });
   clearTrack();
@@ -733,6 +887,8 @@ function startRun() {
   show("hud");
   $("#controls").classList.remove("hidden");
   $("#bossBar").classList.add("hidden");
+  setSkates(false);
+  if (save.stage <= LEVELS.length) setTimeout(() => G.mode === "run" && banner(`NIVEAU ${save.stage}`, `Boss : ${currentLevel().name}`), 400);
   Sfx.music("run");
   if (!save.tutorial) startTutorial();
 }
@@ -844,6 +1000,7 @@ function resumeGame() {
   Sfx.music(G.boss ? "boss" : "run");
 }
 function toMenu() {
+  clearTimeout(G.cineTimer);
   clearInterval(G.reviveTimer);
   clearTrack();
   boss.visible = false;
@@ -995,10 +1152,10 @@ function updateRun(dt) {
       o.z += o.vz * dt;
       o.mesh.position.z = o.z;
     }
-    if (o.kind === "bomb" && o.flying > 0) {
+    if ((o.kind === "bomb" || o.kind === "bone") && o.flying > 0) {
       o.flying -= dt;
       const k = 1 - Math.max(0, o.flying) / 0.85;
-      const to = new THREE.Vector3(laneX(o.lane), 0, o.z);
+      const to = new THREE.Vector3(laneX(o.lane), o.kind === "bone" ? 0.16 : 0, o.z);
       o.mesh.position.lerpVectors(o.from, to, k);
       o.mesh.position.y += Math.sin(k * Math.PI) * 4;
       o.mesh.rotation.x += dt * 8;
@@ -1007,7 +1164,7 @@ function updateRun(dt) {
         o.mesh.rotation.set(0, 0, 0);
         world.release(o.warn);
         o.warn = null;
-        world.burst(to.x, 0.3, to.z, 0xff7fae, 12, 4);
+        world.burst(to.x, 0.3, to.z, o.kind === "bone" ? 0xffffff : 0xff7fae, 12, 4);
         Sfx.play("impact", { volume: 0.25, rate: 1.4 });
       }
     }
@@ -1027,7 +1184,13 @@ function updateRun(dt) {
     // Esquive de justesse : l'objet passe dans le couloir qu'on vient de quitter
     if (!o.passed && o.z - (o.len || 0.6) / 2 > P.z + 0.4) {
       o.passed = true;
-      if (["barrier", "high", "wagon", "bomb"].includes(o.kind) && o.lane === P.fromLane && o.lane !== P.lane && G.t - P.lastLaneT < 0.45) {
+      // Pique esquivée : au bout de 3, Kichta débloque ses patins
+      if (o.spike && G.boss && !G.skates) {
+        G.boss.dodged += 1;
+        if (G.boss.dodged < 3) toast(`Pique esquivée ${G.boss.dodged}/3`, "near");
+        else unlockSkates();
+      }
+      if (["barrier", "high", "wagon", "bomb", "bone", "spike"].includes(o.kind) && o.lane === P.fromLane && o.lane !== P.lane && G.t - P.lastLaneT < 0.45) {
         statWithMissions("near");
         G.score += 50 * multiplier();
         toast("Esquive de justesse ! +" + 50 * multiplier(), "near");
@@ -1044,8 +1207,13 @@ function updateRun(dt) {
       continue;
     }
     if (dx > 1.0) continue;
-    if (o.kind === "barrier" || (o.kind === "bomb" && !(o.flying > 0))) {
-      if (zOverlap(pz0, pz1, o.z - 0.3, o.z + 0.3) && P.y < (o.kind === "bomb" ? 0.9 : 1.0)) crash(o);
+    if (o.kind === "spike") {
+      if (zOverlap(pz0, pz1, o.z - 0.5, o.z + 0.5) && P.y < 1.2) {
+        if (G.skates) returnSpike(o);
+        else crash(o);
+      }
+    } else if (o.kind === "barrier" || ((o.kind === "bomb" || o.kind === "bone") && !(o.flying > 0))) {
+      if (zOverlap(pz0, pz1, o.z - 0.3, o.z + 0.3) && P.y < (o.kind === "bomb" ? 0.9 : o.kind === "bone" ? 0.7 : 1.0)) crash(o);
     } else if (o.kind === "high") {
       if (zOverlap(pz0, pz1, o.z - 0.35, o.z + 0.35) && P.slide <= 0 && P.y < 2.5) crash(o);
     } else if (o.kind === "wagon") {
@@ -1179,7 +1347,7 @@ function tick(dt, draw) {
   // Poils hérissés face à Pucci
   const bristle = Math.min(1, (G.hissT || 0) / 0.6);
   kichta.userData.bristle += (bristle - kichta.userData.bristle) * Math.min(1, dt * 10);
-  pucci.userData.bristle = kichta.userData.bristle;
+  pucci.userData.bristle = pucciHurt.userData.bristle = kichta.userData.bristle;
   animateToon(kichta, G.t, pose, { speed: G.speed / 14, lean: (laneX(P.lane) - P.x) * 0.12, squash: P.squash, flip: flipK * flipK * (3 - 2 * flipK) });
   if (G.mode === "reveal") updateReveal(dt);
   balloons.visible = POWER.balloon > 0;
@@ -1209,13 +1377,15 @@ function tick(dt, draw) {
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
-const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud", "reveal"];
+const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud", "reveal", "cinema"];
 function show(name) {
   const keepHud = ["hud", "pause", "over"].includes(name);
   screens.forEach((s) => $(`#${s}`).classList.toggle("hidden", !(s === name || (s === "hud" && keepHud))));
 }
 let hudScore = -1;
 function updateHud() {
+  const tag = save.stage > LEVELS.length ? "∞" : `NIV ${save.stage}`;
+  if ($("#stageTag").textContent !== tag) $("#stageTag").textContent = tag;
   const s = Math.floor(G.score);
   if (s !== hudScore) {
     $("#score").textContent = s.toLocaleString("fr-FR");
@@ -1319,7 +1489,8 @@ function refreshMenu() {
   const gifts = save.pending.length + (save.chestDay === today() ? 0 : 1);
   $("#chestBadge").textContent = gifts > 1 ? String(gifts) : "!";
   $("#chestBadge").classList.toggle("hidden", gifts === 0);
-  $("#cinemaBtn").classList.toggle("locked", !save.cinematic);
+  $("#cinemaBtn").classList.toggle("locked", !save.cinemas.length);
+  $("#stageLabel").textContent = save.stage > LEVELS.length ? "Mode infini 🏆" : `Niveau ${save.stage} · ${currentLevel().name}`;
   $("#soundBtn").textContent = save.sound ? "🔊" : "🔇";
 }
 
@@ -1343,7 +1514,7 @@ function itemCard(slot, id, item) {
     label = `<i class="coin"></i>${item.price}`;
     disabled = save.coins < item.price;
   } else {
-    label = item.unlock === "level" ? `🔒 Niveau ${item.level}` : item.unlock === "chest" ? "🎁 Coffres" : "🤫 Secret";
+    label = item.unlock === "level" ? `🔒 Rang ${item.level}` : item.unlock === "boss" ? `🏆 Boss niv. ${item.stage}` : item.unlock === "chest" ? "🎁 Coffres" : "🤫 Secret";
     disabled = true;
     action = "";
   }
@@ -1692,11 +1863,19 @@ $("#chestOpen").onclick = openChestScreen;
 
 // --- Cinématique -------------------------------------------------------------------------
 const video = $("#cinematic");
-function playCinematic(fromRun = false) {
-  if (!save.cinematic && !fromRun) {
-    toast("Bats Pucci pour débloquer la cinématique !", "near");
+function playCinematic(n = 1, fromRun = false, finished = false) {
+  const level = LEVELS[n - 1];
+  if (!level || (!save.cinemas.includes(n) && !fromRun)) {
+    toast("Termine ce niveau pour débloquer sa cinématique !", "near");
     return;
   }
+  const src = `${level.video}?v=b4`;
+  if (!video.src.endsWith(src)) {
+    video.src = src;
+    video.load();
+  }
+  video.dataset.finished = finished ? "1" : "";
+  show(fromRun ? "hud" : "menu");
   G.prevMode = G.mode;
   G.mode = "cinema";
   Sfx.music(null);
@@ -1750,6 +1929,8 @@ function endCinematic() {
     G.mode = "run";
     P.invuln = Math.max(P.invuln, 2);
     Sfx.music("run");
+    if (video.dataset.finished) banner("🏆 TU AS FINI LE JEU !", "Mode infini : les boss reviennent, encore plus forts");
+    else if (save.stage <= LEVELS.length) setTimeout(() => G.mode === "run" && banner(`NIVEAU ${save.stage}`, `Prochain boss : ${currentLevel().name}`), 600);
   } else {
     G.mode = "menu";
     Sfx.music("menu");
@@ -1778,7 +1959,22 @@ click("#missionsBtn", () => {
   show("missions");
 });
 click("#chestBtn", openChestScreen);
-click("#cinemaBtn", () => playCinematic(false));
+click("#cinemaBtn", () => {
+  renderCinema();
+  show("cinema");
+});
+function renderCinema() {
+  $("#cinemaList").innerHTML = LEVELS.map((l) => {
+    const open = save.cinemas.includes(l.n);
+    return `<li class="${open ? "" : "locked"}"><span>${open ? "🎬" : "🔒"}</span><div><p>Niveau ${l.n} · ${open ? l.cine : "???"}</p><small>${open ? `Après la victoire contre ${l.name}` : `Bats ${l.name} pour la débloquer`}</small></div><button data-cine="${l.n}" class="soft" ${open ? "" : "disabled"}>▶</button></li>`;
+  }).join("");
+}
+$("#cinemaList").addEventListener("click", (e) => {
+  const n = Number(e.target.closest("button")?.dataset.cine);
+  if (!n) return;
+  Sfx.play("click", { volume: 0.4 });
+  playCinematic(n, false);
+});
 document.querySelectorAll(".back").forEach((b) =>
   b.addEventListener("click", () => {
     Sfx.play("click", { volume: 0.4 });
@@ -1828,5 +2024,5 @@ if ("serviceWorker" in navigator && !location.search.includes("debug")) navigato
 
 // Mode test (?debug)
 if (location.search.includes("debug")) {
-  window.kichta = { G, P, POWER, save, tick, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist };
+  window.kichta = { G, P, POWER, save, tick, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, LEVELS, endBoss, hurtBoss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist };
 }

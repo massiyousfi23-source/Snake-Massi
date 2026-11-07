@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas>
+<script type="module">
+import * as THREE from "../../vendor/three.module.min.js";
+import { createWorld } from "../world.js?v=b4";
+import { createToon, animateToon, addInjuries } from "../toons.js?v=b4";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, setBald } from "../bosses.js?v=b4";
+const world = createWorld(document.querySelector("#c"));
+world.setQuality(0); world.resize(1280, 720); world.clearDecor(0);
+const k = createToon("kichta"); world.scene.add(k);
+k.userData.legs.forEach((l) => { const s = createSkate(); s.position.set(0, -0.37, 0.03); l.add(s); });
+const dog = createDog(); dog.position.set(-1.9, 0, -0.4); dog.rotation.y = 0.35; world.scene.add(dog);
+const hog = createHedgehog(); hog.position.set(1.9, 0, -0.4); hog.rotation.y = -0.35; world.scene.add(hog);
+const bone = createBone(); bone.position.set(-0.8, 0.3, 1.2); world.scene.add(bone);
+const sp = createSpike(); sp.position.set(0.9, 0.5, 1.2); world.scene.add(sp);
+window.draw = (t, pd = "bark", ph = "throw", bald = false) => {
+  setBald(hog, bald); hog.userData.spikes.visible = !bald;
+  world.update(0.016, t, { playerX: 0, playerY: 0, playerZ: 0, speed: 0, mode: "menu" });
+  animateToon(k, t, "idle"); k.rotation.y = 0;
+  animateDog(dog, t, pd); animateHedgehog(hog, t, ph);
+  world.camera.position.set(0, 1.7, 5.4); world.camera.lookAt(0, 0.8, 0); world.camera.fov = 50; world.camera.updateProjectionMatrix();
+  world.render();
+};
+window.ready = true;
+</script></body></html>

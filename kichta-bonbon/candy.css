@@ -173,16 +173,16 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 .power { display: flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .8); border-radius: 99px; padding: 3px 10px 3px 4px; font-size: 22px; }
 .power i { width: 70px; height: 9px; background: #f6dbe8; border-radius: 9px; position: relative; overflow: hidden; }
 .power i::after { content: ""; position: absolute; inset: 0; width: calc(var(--p) * 100%); background: linear-gradient(90deg, var(--blue), #8fe0ff); }
-#bossBar { position: absolute; top: calc(64px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: rgba(40, 20, 40, .7); color: #fff; padding: 6px 14px; border-radius: 99px; font-weight: 700; }
+#bossBar { position: absolute; top: calc(60px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: rgba(40, 20, 40, .7); color: #fff; padding: 6px 14px; border-radius: 99px; font-weight: 700; }
 #bossBar div { display: flex; gap: 4px; }
 #bossBar i { width: 34px; height: 12px; border-radius: 6px; background: linear-gradient(#ff8cc0, #ff3d7a); box-shadow: 0 0 10px #ff5fa2; }
 #bossBar i.off { background: #5a4458; box-shadow: none; }
-#toasts { position: absolute; top: 44%; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.toast { padding: 7px 18px; border-radius: 99px; background: rgba(255, 255, 255, .92); font-weight: 700; font-size: 18px; color: var(--pink-d); box-shadow: 0 4px 12px rgba(140, 40, 100, .25); animation: toast 1.7s ease forwards; text-align: center; max-width: 90vw; }
+#toasts { position: absolute; top: calc(104px + var(--safe-t)); right: calc(10px + var(--safe-r)); display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 62vw; }
+.toast { padding: 5px 13px; border-radius: 99px; background: rgba(255, 255, 255, .88); font-weight: 700; font-size: 14px; color: var(--pink-d); box-shadow: 0 4px 12px rgba(140, 40, 100, .25); animation: toast 1.7s ease forwards; text-align: center; max-width: 90vw; }
 .toast.mission { background: #e2fff3; color: #127a5a; }
 .toast.power { background: #fff4c2; color: #a35a00; }
 .toast.near { background: #e6f4ff; color: #1f6fb8; }
-#tuto { position: absolute; bottom: calc(150px + var(--safe-b)); left: 50%; transform: translateX(-50%); background: rgba(74, 34, 70, .78); color: #fff; padding: 10px 18px; border-radius: 18px; font-weight: 600; font-size: 18px; text-align: center; width: max-content; max-width: 88vw; animation: bounce 1.2s infinite; }
+#tuto { position: absolute; bottom: calc(clamp(74px, 13vh, 104px) + 26px + var(--safe-b)); left: 50%; transform: translateX(-50%); background: rgba(74, 34, 70, .7); color: #fff; padding: 7px 14px; border-radius: 16px; font-weight: 600; font-size: 15px; text-align: center; width: max-content; max-width: 88vw; animation: bounce 1.2s infinite; }
 
 /* Boutons de jeu */
 #controls { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 calc(12px + var(--safe-r)) calc(14px + var(--safe-b)) calc(12px + var(--safe-l)); display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 12px; max-width: 720px; margin: 0 auto; }
@@ -213,9 +213,9 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 .row { display: flex; gap: 12px; align-items: center; }
 
 /* Bandeau, flash, vidéo */
-#banner { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; width: 92vw; }
-#banner strong { display: block; font-size: clamp(36px, 10vw, 66px); color: #fff; -webkit-text-stroke: 3px #e0458b; paint-order: stroke fill; text-shadow: 0 5px 0 #b8336f, 0 12px 24px rgba(140, 30, 90, .4); line-height: 1; }
-#banner span { display: inline-block; margin-top: 8px; background: rgba(255, 255, 255, .9); padding: 5px 16px; border-radius: 99px; font-weight: 700; color: var(--pink-d); }
+#banner { position: absolute; top: calc(96px + var(--safe-t)); left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; width: 92vw; }
+#banner strong { display: block; font-size: clamp(24px, 6.5vw, 40px); color: #fff; -webkit-text-stroke: 2px #e0458b; paint-order: stroke fill; text-shadow: 0 5px 0 #b8336f, 0 12px 24px rgba(140, 30, 90, .4); line-height: 1; }
+#banner span { display: inline-block; margin-top: 5px; font-size: 13px; background: rgba(255, 255, 255, .88); padding: 3px 12px; border-radius: 99px; font-weight: 700; color: var(--pink-d); }
 #banner.go { animation: banner 2.6s ease forwards; }
 #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
 #flash.go { animation: flash .45s ease; }
@@ -269,3 +269,17 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 
 #videoSound { position: absolute; z-index: 21; left: calc(14px + var(--safe-l)); bottom: calc(18px + var(--safe-b)); padding: 10px 18px; border-radius: 99px; background: rgba(255, 255, 255, .9); font-weight: 700; }
 #videoPlay { position: absolute; z-index: 22; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; }
+
+/* Les bulles d'info restent à droite, sous les compteurs */
+@keyframes toast { 0% { transform: translateX(20px); opacity: 0; } 10% { transform: translateX(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+
+#playBtn small { display: block; font-size: 14px; letter-spacing: .5px; margin-top: 2px; opacity: .95; }
+#stageTag { font-style: normal; background: rgba(74, 34, 70, .75); color: #fff; padding: 2px 9px; border-radius: 99px; font-size: 14px; font-weight: 700; }
+#cinemaList li.locked { opacity: .6; }
+#cinemaList li .soft { padding: 8px 16px; font-size: 18px; }
+
+/* Barre du boss compacte, bandeau et bulles bien séparés */
+#bossBar { white-space: nowrap; font-size: 13px; padding: 4px 12px; gap: 6px; }
+#bossBar i { width: 22px; height: 10px; }
+#banner { top: calc(100px + var(--safe-t)); }
+#toasts { top: calc(172px + var(--safe-t)); }
