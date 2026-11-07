@@ -1,6 +1,6 @@
 // Mode hors ligne : le jeu se met en cache à la première visite.
-const CACHE = 'kichta-run-bonbon-b3';
-const FILES = ['./', 'index.html', 'candy.css?v=b3', 'main.js?v=b3', 'world.js?v=b3', 'toons.js?v=b3', 'sfx.js?v=b3',
+const CACHE = 'kichta-run-bonbon-b4';
+const FILES = ['./', 'index.html', 'candy.css?v=b4', 'main.js?v=b4', 'world.js?v=b4', 'toons.js?v=b4', 'sfx.js?v=b4',
   '../vendor/three.core.min.js', '../vendor/three.module.min.js', '../vendor/three.addons.min.js',
   'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png',
   'assets/audio/candy-menu.mp3', 'assets/audio/candy-run.mp3', 'assets/audio/candy-boss.mp3', 'assets/audio/pucci-meow.mp3',

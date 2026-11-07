@@ -136,6 +136,37 @@ function synthesize() {
       }
     }
   });
+  // Aboiement « ouaf ! » : voix grave qui descend, souffle et deux formants
+  buffers.bark = make(0.42, (d, n) => {
+    let phase = 0;
+    let lp = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const woof = t < 0.2 ? t : t - 0.22;
+      const on = t < 0.2 || (t > 0.22 && t < 0.4) ? 1 : 0;
+      const f0 = (t < 0.2 ? 330 : 290) * (1 - woof * 1.6);
+      phase += (2 * Math.PI * f0) / sr;
+      let v = 0;
+      for (let h = 1; h <= 9; h += 1) {
+        const fh = f0 * h;
+        const formant = Math.exp(-(((fh - 650) / 260) ** 2)) + 0.6 * Math.exp(-(((fh - 1350) / 380) ** 2)) + 0.15;
+        v += Math.sin(phase * h) * formant / h ** 0.4;
+      }
+      lp = lp * 0.7 + (Math.random() * 2 - 1) * 0.3;
+      const env = on * Math.min(1, woof / 0.012) * Math.exp(-woof * (t < 0.2 ? 11 : 13));
+      d[i] = (v * 0.32 + lp * 0.35) * env;
+    }
+  });
+  // Petit cri aigu du hérisson
+  buffers.squeak = make(0.35, (d, n) => {
+    let phase = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const f = 1400 + Math.sin(t * 40) * 300 + t * 2200;
+      phase += (2 * Math.PI * f) / sr;
+      d[i] = (Math.sin(phase) * 0.5 + Math.sin(phase * 2) * 0.15) * Math.min(1, t / 0.01) * Math.exp(-t * 7);
+    }
+  });
   // Explosion douce de l'ouverture
   buffers.pop = make(0.6, (d, n) => {
     let lp = 0;

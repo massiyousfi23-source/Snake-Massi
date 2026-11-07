@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="candy.css?v=b3">
+  <link rel="stylesheet" href="candy.css?v=b4">
   <link rel="modulepreload" href="../vendor/three.core.min.js">
   <link rel="modulepreload" href="../vendor/three.module.min.js">
   <title>Kichta Run Bonbon</title>
@@ -26,7 +26,7 @@
     <!-- Pendant la course -->
     <div id="hud" class="hidden">
       <div class="hud-top">
-        <div class="score-box"><span id="score">0</span><b id="mult">×1</b></div>
+        <div class="score-box"><span id="score">0</span><b id="mult">×1</b><em id="stageTag">NIV 1</em></div>
         <div class="hud-right">
           <div class="coin-box"><i class="coin"></i><span id="coins">0</span></div>
           <button id="pauseBtn" class="round" aria-label="Pause">Ⅱ</button>
@@ -56,7 +56,7 @@
       <div class="title"><h1 class="logo"><span>KICHTA</span><em>RUN</em></h1>
       <p class="tag">La course la plus sucrée du monde 🍭</p></div>
       <div class="menu-bottom">
-        <button id="playBtn" class="big">JOUER</button>
+        <button id="playBtn" class="big">JOUER<small id="stageLabel">Niveau 1 · Pucci</small></button>
         <div class="menu-grid">
           <button id="shopBtn"><span class="ico">🛍️</span><span>Boutique</span></button>
           <button id="missionsBtn"><span class="ico">🎯</span><span>Missions</span><em id="levelBadge">×1</em></button>
@@ -86,6 +86,12 @@
         <p id="chestText"></p>
         <button id="chestOpen" class="big">OUVRIR</button>
       </div>
+    </section>
+
+    <section id="cinema" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Cinéma</h2><span></span></header>
+      <ul id="cinemaList" class="missions"></ul>
+      <p class="note">Chaque niveau terminé débloque sa cinématique. Le niveau 4 est le boss final !</p>
     </section>
 
     <section id="pause" class="screen dim hidden">
@@ -124,11 +130,11 @@
 
     <div id="banner" class="hidden"></div>
     <div id="flash"></div>
-    <video id="cinematic" class="hidden" playsinline preload="metadata"><source src="assets/kichta-ending.mp4?v=bonbon" type="video/mp4"></video>
+    <video id="cinematic" class="hidden" playsinline preload="metadata" src="assets/cine-1.mp4?v=b4"></video>
     <button id="skipVideo" class="hidden">Passer ▶▶</button>
     <button id="videoSound" class="hidden">🔊 Activer le son</button>
     <button id="videoPlay" class="big hidden">▶ REGARDER</button>
   </div>
-  <script type="module" src="main.js?v=b3"></script>
+  <script type="module" src="main.js?v=b4"></script>
 </body>
 </html>
