@@ -15,10 +15,10 @@ jobs:
         run: |
           mkdir -p out/lib && cd out/lib
           npm init -y >/dev/null
-          npm install --no-audit --no-fund @huggingface/transformers@3 onnxruntime-web@1.20.1
+          npm install --no-audit --no-fund @huggingface/transformers@3
           mkdir -p ../transformers ../ort
           cp -r node_modules/@huggingface/transformers/dist/* ../transformers/
-          cp node_modules/onnxruntime-web/dist/ort.wasm.min.mjs node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs ../ort/ || ls node_modules/onnxruntime-web/dist
+          ORT=$(dirname $(node -e "console.log(require.resolve('onnxruntime-web/package.json',{paths:[require.resolve('@huggingface/transformers')]}))")); echo $ORT; grep '"version"' $ORT/package.json; cp $ORT/dist/ort.wasm.min.mjs $ORT/dist/ort-wasm-simd-threaded.wasm $ORT/dist/ort-wasm-simd-threaded.mjs $ORT/dist/ort.webgpu.min.mjs $ORT/dist/ort-wasm-simd-threaded.jsep.* ../ort/ || ls $ORT/dist
           ls -la ../ort ../transformers | head -40
           cat node_modules/onnxruntime-web/package.json | grep '"version"'
           cd .. && rm -rf lib
@@ -27,11 +27,12 @@ jobs:
           pip install -q huggingface_hub
           python - <<'P'
           from huggingface_hub import snapshot_download, list_repo_files
-          for repo in ["Xenova/mobileclip_s0", "Xenova/clip-vit-base-patch32"]:
+          for repo in ["Xenova/mobileclip_s0"]:
               try:
                   files = list_repo_files(repo); print(repo, files)
-                  allow = [f for f in files if f.endswith(".json") or f.endswith(".txt") or f in ("onnx/vision_model_quantized.onnx", "onnx/text_model_quantized.onnx", "onnx/vision_model_uint8.onnx", "onnx/vision_model_fp16.onnx", "onnx/vision_model.onnx")]
+                  allow = [f for f in files if f.endswith(".json") or f.endswith(".txt") or f in ("onnx/vision_model_quantized.onnx", "onnx/text_model_quantized.onnx", "onnx/vision_model_fp16.onnx")]
                   snapshot_download(repo, local_dir="out/models/" + repo, allow_patterns=allow)
+                  import shutil; shutil.rmtree("out/models/" + repo + "/.cache", ignore_errors=True)
               except Exception as e:
                   print("échec", repo, e)
           P
