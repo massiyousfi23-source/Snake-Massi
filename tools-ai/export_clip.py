@@ -24,8 +24,10 @@ for tag, name in MODELS.items():
     try:
         out = f"out/clip/{tag}"; os.makedirs(out, exist_ok=True)
         m = CLIPModel.from_pretrained(name).eval()
-        tok = CLIPTokenizer.from_pretrained(name)
-        proc = CLIPImageProcessor.from_pretrained(name)
+        # TinyCLIP utilise le même découpage de texte et les mêmes images que CLIP d'OpenAI
+        ref = "openai/clip-vit-base-patch16" if tag.startswith("tc") else name
+        tok = CLIPTokenizer.from_pretrained(ref)
+        proc = CLIPImageProcessor.from_pretrained(ref)
         size = proc.crop_size["height"] if isinstance(proc.crop_size, dict) else proc.crop_size
         groups = {}
         with torch.no_grad():
@@ -47,4 +49,5 @@ for tag, name in MODELS.items():
         json.dump({"config": cfg, "groups": groups}, open(f"{out}/text.json", "w"), separators=(",", ":"))
         for f in os.listdir(out): print(tag, f, os.path.getsize(f"{out}/{f}") // 1024 // 1024, "Mo")
     except Exception as e:
-        print("échec", tag, e)
+        import traceback; traceback.print_exc()
+        print("échec", tag, repr(e))
