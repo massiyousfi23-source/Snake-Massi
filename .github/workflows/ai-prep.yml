@@ -20,9 +20,8 @@ jobs:
           npm install --no-audit --no-fund @huggingface/transformers@3
           mkdir -p ../transformers ../ort
           cp -r node_modules/@huggingface/transformers/dist/* ../transformers/
-          ORT=$(dirname $(node -e "console.log(require.resolve('onnxruntime-web/package.json',{paths:[require.resolve('@huggingface/transformers')]}))")); echo $ORT; grep '"version"' $ORT/package.json; cp $ORT/dist/ort.wasm.min.mjs $ORT/dist/ort-wasm-simd-threaded.wasm $ORT/dist/ort-wasm-simd-threaded.mjs $ORT/dist/ort.webgpu.min.mjs $ORT/dist/ort-wasm-simd-threaded.jsep.* ../ort/ || ls $ORT/dist
+          ORT=node_modules/onnxruntime-web; grep '"version"' $ORT/package.json; cp $ORT/dist/ort.wasm.min.mjs $ORT/dist/ort-wasm-simd-threaded.wasm $ORT/dist/ort-wasm-simd-threaded.mjs $ORT/dist/ort.webgpu.min.mjs $ORT/dist/ort-wasm-simd-threaded.jsep.* ../ort/ || ls $ORT/dist
           ls -la ../ort ../transformers | head -40
-          cat node_modules/onnxruntime-web/package.json | grep '"version"'
           cd .. && rm -rf lib
       - name: Modèles
         run: |

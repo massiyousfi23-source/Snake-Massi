@@ -105,7 +105,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 .title { text-align: center; margin: 2vh 0 auto; }
 .tag { margin: 10px 0 0; font-weight: 600; font-size: 18px; color: #fff; text-shadow: 0 2px 0 #d63c7d; }
 .menu-bottom { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
-.menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.menu-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.menu-grid span:last-of-type { white-space: nowrap; }
 .menu-grid button {
   border-radius: 22px;
   padding: 10px 2px 8px;
@@ -283,3 +284,26 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 #bossBar i { width: 22px; height: 10px; }
 #banner { top: calc(100px + var(--safe-t)); }
 #toasts { top: calc(172px + var(--safe-t)); }
+
+/* Mon chat : photo du joueur → figurine la plus ressemblante */
+#mycatBadge { background: var(--mint); box-shadow: 0 2px 0 #1f9a76; font-size: 11px; }
+.mycat-card { background: #fff; border-radius: 26px; padding: 18px 16px; width: 100%; max-width: 520px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; box-shadow: 0 5px 0 #f0b7d2; }
+.mycat-intro { margin: 0; font-size: 18px; font-weight: 600; }
+.photo-btn { cursor: pointer; padding: 16px 28px 18px; font-size: clamp(18px, 5vw, 24px); }
+#mycatPhoto { width: 170px; height: 170px; object-fit: cover; border-radius: 24px; box-shadow: 0 4px 0 #f0b7d2; }
+#mycatStatus { margin: 0; font-weight: 700; }
+.mycat-card .bar { width: 80%; height: 12px; border-radius: 99px; background: #ffe0ee; overflow: hidden; }
+.mycat-card .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--pink), var(--gold)); border-radius: 99px; transition: width .2s; }
+#mycatResult { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#mycatResult h3 { margin: 0; font-size: 22px; color: var(--pink-d); text-align: center; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; width: 100%; max-width: 760px; padding: 8px 2px; }
+.cat-grid.top { grid-template-columns: repeat(3, 1fr); }
+.cat-card { background: #fff; border-radius: 20px; padding: 6px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; box-shadow: 0 4px 0 #f0b7d2; font-size: 13px; font-weight: 700; text-align: center; line-height: 1.1; }
+.cat-card img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 16px; background: #fff3f8; }
+.cat-card small { color: #a0608c; font-weight: 600; }
+.cat-card.on { outline: 4px solid var(--mint); }
+.cat-card .pct { color: var(--pink-d); font-size: 15px; }
+.name-field { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.name-field input { font: inherit; font-size: 20px; width: 190px; padding: 10px 16px; border-radius: 999px; border: 3px solid #f6b3d2; outline: none; text-align: center; color: var(--ink); background: #fff; user-select: text; -webkit-user-select: text; }
+.mycat-all { width: 100%; max-width: 760px; }
+.mycat-all summary { cursor: pointer; text-align: center; font-weight: 700; color: var(--pink-d); padding: 8px; list-style: none; }

@@ -62,6 +62,7 @@
           <button id="missionsBtn"><span class="ico">🎯</span><span>Missions</span><em id="levelBadge">×1</em></button>
           <button id="chestBtn"><span class="ico">🎁</span><span>Coffre</span><em id="chestBadge" class="hidden">!</em></button>
           <button id="cinemaBtn"><span class="ico">🎬</span><span>Cinéma</span></button>
+          <button id="mycatBtn"><span class="ico">📸</span><span>Mon chat</span><em id="mycatBadge">NEW</em></button>
         </div>
       </div>
     </section>
@@ -91,7 +92,28 @@
     <section id="cinema" class="screen panel hidden">
       <header><button class="back round" aria-label="Retour">◀</button><h2>Cinéma</h2><span></span></header>
       <ul id="cinemaList" class="missions"></ul>
-      <p class="note">Chaque niveau terminé débloque sa cinématique. Le niveau 4 est le boss final !</p>
+      <p class="note">Chaque niveau terminé débloque sa cinématique. Le niveau 6 est le boss final !</p>
+    </section>
+
+    <section id="mycat" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Mon chat</h2><span></span></header>
+      <div id="mycatHome" class="mycat-card">
+        <p class="mycat-intro">Prends ton chat en photo : on trouve la figurine qui lui ressemble le plus, et c'est lui qui court !</p>
+        <label class="big photo-btn">📷 PHOTO DE MON CHAT<input id="mycatFile" type="file" accept="image/*" hidden></label>
+        <p class="note">La photo reste sur ton téléphone : elle n'est envoyée nulle part. Conseil : ton chat bien en vue, de face, avec de la lumière.</p>
+      </div>
+      <div id="mycatWork" class="mycat-card hidden">
+        <img id="mycatPhoto" alt="Photo de ton chat">
+        <p id="mycatStatus">Analyse en cours…</p>
+        <div class="bar"><i id="mycatBar"></i></div>
+      </div>
+      <div id="mycatResult" class="hidden">
+        <h3 id="mycatTitle">Il te ressemble…</h3>
+        <div id="mycatTop" class="cat-grid top"></div>
+        <label class="name-field">Son prénom <input id="mycatName" maxlength="14" placeholder="Kichta" autocomplete="off"></label>
+        <button id="mycatOk" class="big">C'EST MON CHAT !</button>
+      </div>
+      <details id="mycatAll" class="mycat-all"><summary>Voir tous les chats</summary><div id="mycatGrid" class="cat-grid"></div></details>
     </section>
 
     <section id="pause" class="screen dim hidden">
