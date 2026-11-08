@@ -38,6 +38,11 @@ jobs:
                   print("échec", repo, e)
           P
           du -ah out/models | sort -h | tail -30
+      - name: Modèles CLIP sous licence libre (MIT)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "transformers<5" onnx onnxruntime onnxconverter-common onnxscript
+          python3 tools-ai/export_clip.py
       - name: Photos de test (Oxford-IIIT Pet, races étiquetées ; jamais livrées dans le jeu)
         run: |
           mkdir -p out/photos
