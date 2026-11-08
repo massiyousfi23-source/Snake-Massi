@@ -42,8 +42,10 @@ jobs:
         run: |
           mkdir -p out/photos
           (curl -fsSL --retry 3 -o pets.tgz https://thor.robots.ox.ac.uk/datasets/pets/images.tar.gz || curl -fsSL --retry 3 -o pets.tgz https://www.robots.ox.ac.uk/~vgg/data/pets/data/images.tar.gz) && tar xzf pets.tgz
+          pip install -q pillow
           python3 - <<'P'
-          import os, random, subprocess
+          import os, random
+          from PIL import Image
           random.seed(7)
           cats = ["Abyssinian", "Bengal", "Birman", "Bombay", "British_Shorthair", "Egyptian_Mau", "Maine_Coon", "Persian", "Ragdoll", "Russian_Blue", "Siamese", "Sphynx"]
           files = os.listdir("images")
@@ -51,7 +53,10 @@ jobs:
               mine = sorted(f for f in files if f.startswith(c + "_") and f.endswith(".jpg"))
               random.shuffle(mine)
               for f in mine[:14]:
-                  subprocess.run(["convert", "images/" + f, "-resize", "512x512>", "-quality", "85", "out/photos/" + f], check=False)
+                  try:
+                      im = Image.open("images/" + f).convert("RGB"); im.thumbnail((512, 512)); im.save("out/photos/" + f, quality=85)
+                  except Exception as e:
+                      print("échec", f, e)
           print(len(os.listdir("out/photos")))
           P
           python3 tools-ai/fetch_photos.py out/photos-commons || true
