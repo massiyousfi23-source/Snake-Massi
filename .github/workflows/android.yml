@@ -46,7 +46,11 @@ jobs:
         working-directory: app-android/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          # Téléchargement de Gradle plus patient (les serveurs sont parfois lents)
+          sed -i -e 's/networkTimeout=.*/networkTimeout=120000/' -e 's/-all\.zip/-bin.zip/' gradle/wrapper/gradle-wrapper.properties
+          grep -q networkTimeout gradle/wrapper/gradle-wrapper.properties || echo "networkTimeout=120000" >> gradle/wrapper/gradle-wrapper.properties
+          for i in 1 2 3; do ./gradlew assembleDebug --no-daemon && exit 0; echo "Nouvel essai $i…"; sleep 20; done
+          exit 1
 
       - name: Renommer l'APK
         run: cp app-android/android/app/build/outputs/apk/debug/app-debug.apk KichtaRunBonbon.apk
