@@ -2101,6 +2101,7 @@ function openMycat() {
   $("#mycatWork").classList.add("hidden");
   $("#mycatResult").classList.add("hidden");
   $("#mycatAll").open = false;
+  $("#mycatMine").classList.add("hidden");
   renderMycatGrid();
   save.mycatSeen = true;
   persist();
@@ -2137,6 +2138,8 @@ async function analysePhoto(file) {
     $("#mycatWork").classList.add("hidden");
     const top = res.ranked.slice(0, 3);
     mycatPick = top[0].cat.id;
+    $("#mycatMine").src = url;
+    $("#mycatMine").classList.remove("hidden");
     showMycatChoice(res.isCat ? "Ton chat ressemble à…" : "Hmm, je ne vois pas bien de chat… Voici mes idées :", top);
     Sfx.play("sparkle", { volume: 0.5 });
   } catch (err) {

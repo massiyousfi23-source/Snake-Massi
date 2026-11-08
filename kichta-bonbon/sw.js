@@ -16,7 +16,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || e.request.headers.has('range') || url.pathname.endsWith('.mp4')) return;
   if (url.origin !== location.origin) return;
-  // L'IA « Mon chat » (≈ 33 Mo) : gardée dans son propre cache, d'une version à l'autre
+  // L'IA « Mon chat » (≈ 50 Mo) : gardée dans son propre cache, d'une version à l'autre
   if (url.pathname.includes('/ai/')) {
     e.respondWith(caches.open(AI_CACHE).then((c) => c.match(e.request).then((hit) => hit || fetch(e.request).then((r) => {
       if (r.ok) c.put(e.request, r.clone());

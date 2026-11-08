@@ -1,5 +1,5 @@
 // Reconnaissance « Mon chat » : tout se passe sur le téléphone, la photo ne quitte jamais l'appareil.
-// 1. Un petit modèle de vision (MobileCLIP S0, 12 Mo) transforme la photo en « empreinte ».
+// 1. Un modèle de vision libre (TinyCLIP de Microsoft, licence MIT, 38 Mo) transforme la photo en « empreinte ».
 // 2. On compare cette empreinte à celles de descriptions de traits (motif, couleur, poil,
 //    oreilles, visage, yeux, race) calculées à l'avance (ai/text.json).
 // 3. Chaque chat du catalogue reçoit une note selon ses traits ; on garde les meilleurs.

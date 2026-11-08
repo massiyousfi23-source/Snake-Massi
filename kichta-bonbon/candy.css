@@ -308,3 +308,5 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 .mycat-all { width: 100%; max-width: 760px; }
 .mycat-all summary { cursor: pointer; text-align: center; font-weight: 700; color: var(--pink-d); padding: 8px; list-style: none; }
 #mycatOk, .photo-btn { white-space: nowrap; padding-left: 30px; padding-right: 30px; font-size: clamp(18px, 5.4vw, 26px); letter-spacing: 1px; }
+.mycat-head { display: flex; align-items: center; gap: 12px; }
+#mycatMine { width: 64px; height: 64px; object-fit: cover; border-radius: 18px; box-shadow: 0 3px 0 #f0b7d2; }
