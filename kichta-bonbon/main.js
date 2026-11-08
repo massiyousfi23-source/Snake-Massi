@@ -8,6 +8,7 @@ import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTF
 import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b5";
 import { installThemes, themeIndex } from "./themes.js?v=b5";
 import * as Sfx from "./sfx.js?v=b5";
+import { CATS } from "./cats.js?v=b5";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -36,6 +37,7 @@ const DEFAULT_SAVE = {
   sound: true,
   tutorial: false,
   runs: 0,
+  hero: { id: "kichta", name: "Kichta" },
 };
 function loadSave() {
   try {
@@ -105,7 +107,10 @@ const missionType = (m) => MISSION_TYPES.find((t) => t.id === m.id);
 // Monde et personnages
 // ---------------------------------------------------------------------------
 const world = createWorld(canvas);
-const kichta = createToon("kichta", { skin: save.wear.skin });
+// Le héros : Kichta, ou le chat du joueur (écran « Mon chat »)
+const heroCat = () => CATS.find((c) => c.id === save.hero?.id) || null;
+const heroKey = () => `${save.wear.skin}|${heroCat()?.id || "kichta"}`;
+const kichta = createToon("kichta", { skin: save.wear.skin, look: heroCat()?.look });
 dressToon(kichta, save.wear);
 world.scene.add(kichta);
 kichta.traverse((o) => o.isMesh && (o.castShadow = true));
@@ -1473,7 +1478,7 @@ function tick(dt, draw) {
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
-const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud", "reveal", "cinema"];
+const screens = ["menu", "shop", "missions", "chest", "pause", "over", "hud", "reveal", "cinema", "mycat"];
 function show(name) {
   const keepHud = ["hud", "pause", "over"].includes(name);
   screens.forEach((s) => $(`#${s}`).classList.toggle("hidden", !(s === name || (s === "hud" && keepHud))));
@@ -1588,6 +1593,7 @@ function refreshMenu() {
   $("#cinemaBtn").classList.toggle("locked", !save.cinemas.length);
   $("#stageLabel").textContent = save.stage > LEVELS.length ? "Mode infini 🏆" : `Niveau ${save.stage} · ${currentLevel().name}`;
   $("#soundBtn").textContent = save.sound ? "🔊" : "🔇";
+  $("#mycatBadge").classList.toggle("hidden", !!save.mycatSeen);
 }
 
 // --- Boutique ---------------------------------------------------------------------
@@ -1643,6 +1649,7 @@ function renderShop() {
       const label = worn ? "PORTÉ" : owned ? "PORTER" : `<i class="coin"></i>${item.price}`;
       return `<div class="item ${worn ? "worn" : ""}"><div class="icon"><span class="swatch" style="--a:${item.base};--b:${item.stripe}"></span></div><b>${item.name}</b><small>Pelage</small><button data-item="${k}" data-slot="skin" ${worn || (!owned && save.coins < item.price) ? "disabled" : ""}>${label}</button></div>`;
     });
+    if (heroCat()) items.unshift(`<p class="note" style="grid-column:1/-1">Les pelages habillent Kichta. Ton chat ${save.hero.name} garde sa propre robe (écran 📸 Mon chat).</p>`);
   } else if (shopTab === "vintage") {
     items = ALL_ITEMS.filter((i) => i.vintage).map((i) => itemCard(i.slot, i.id, i));
   } else {
@@ -1697,21 +1704,21 @@ $("#shopGrid").addEventListener("click", (e) => {
   renderShop();
 });
 function applyLook() {
-  if (kichta.userData.skin !== save.wear.skin) {
-    // Nouveau pelage : on reconstruit Kichta
-    const fresh = createToon("kichta", { skin: save.wear.skin });
+  if (kichta.userData.skin !== heroKey()) {
+    // Nouveau pelage ou nouveau chat : on reconstruit le héros
+    const fresh = createToon("kichta", { skin: save.wear.skin, look: heroCat()?.look });
     world.scene.remove(kichta);
     kichta.clear();
     fresh.children.slice().forEach((c) => kichta.add(c));
     kichta.userData = fresh.userData;
     kichta.add(balloons, shieldBubble, magnetRing);
     world.scene.add(kichta);
-    kichta.userData.skin = save.wear.skin;
+    kichta.userData.skin = heroKey();
   }
   dressToon(kichta, save.wear);
   kichta.traverse((o) => o.isMesh && o !== shieldBubble && (o.castShadow = true));
 }
-kichta.userData.skin = save.wear.skin;
+kichta.userData.skin = heroKey();
 
 // --- Coffres : cérémonie d'ouverture façon jeu vidéo --------------------------------------
 const CHEST_LOOK = {
@@ -2078,6 +2085,95 @@ document.querySelectorAll(".back").forEach((b) =>
     refreshMenu();
   }),
 );
+// --- Mon chat : la photo du joueur → la figurine qui lui ressemble le plus ---------------------
+const catThumb = (id) => `assets/cats/${id}.webp?v=b5`;
+const ALL_CATS = [{ id: "kichta", name: "Kichta", look: null }, ...CATS];
+let mycatPick = null;
+function catCard(cat, extra = "") {
+  return `<button class="cat-card ${mycatPick === cat.id ? "on" : ""}" data-cat="${cat.id}"><img src="${catThumb(cat.id)}" alt="" loading="lazy">${cat.name}${extra}</button>`;
+}
+function renderMycatGrid() {
+  $("#mycatGrid").innerHTML = ALL_CATS.map((c) => catCard(c)).join("");
+}
+function openMycat() {
+  mycatPick = save.hero?.id || "kichta";
+  $("#mycatHome").classList.remove("hidden");
+  $("#mycatWork").classList.add("hidden");
+  $("#mycatResult").classList.add("hidden");
+  $("#mycatAll").open = false;
+  renderMycatGrid();
+  save.mycatSeen = true;
+  persist();
+  refreshMenu();
+  show("mycat");
+}
+function showMycatChoice(title, list) {
+  $("#mycatTitle").textContent = title;
+  $("#mycatTop").innerHTML = list.map(({ cat, match }) => catCard(cat, match ? `<small class="pct">${match} %</small>` : "")).join("");
+  $("#mycatName").value = save.hero?.id !== "kichta" ? save.hero?.name || "" : "";
+  $("#mycatResult").classList.remove("hidden");
+  renderMycatGrid();
+}
+async function analysePhoto(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.src = url;
+  $("#mycatPhoto").src = url;
+  $("#mycatHome").classList.add("hidden");
+  $("#mycatResult").classList.add("hidden");
+  $("#mycatWork").classList.remove("hidden");
+  const status = $("#mycatStatus");
+  const bar = $("#mycatBar");
+  status.textContent = "Préparation de l'IA…";
+  bar.style.width = "4%";
+  try {
+    await img.decode();
+    const CatMatch = await import("./catmatch.js?v=b5");
+    const res = await CatMatch.analyse(img, (k) => {
+      status.textContent = `Préparation de l'IA… ${Math.round(k * 100)} %`;
+      bar.style.width = `${4 + k * 80}%`;
+    });
+    bar.style.width = "100%";
+    $("#mycatWork").classList.add("hidden");
+    const top = res.ranked.slice(0, 3);
+    mycatPick = top[0].cat.id;
+    showMycatChoice(res.isCat ? "Ton chat ressemble à…" : "Hmm, je ne vois pas bien de chat… Voici mes idées :", top);
+    Sfx.play("sparkle", { volume: 0.5 });
+  } catch (err) {
+    console.error(err);
+    status.textContent = "Oups, l'analyse n'a pas marché. Vérifie ta connexion la première fois, puis réessaie.";
+    $("#mycatHome").classList.remove("hidden");
+  }
+}
+$("#mycatFile").addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (file) analysePhoto(file);
+});
+$("#mycat").addEventListener("click", (e) => {
+  const card = e.target.closest(".cat-card");
+  if (!card) return;
+  Sfx.play("click", { volume: 0.4 });
+  mycatPick = card.dataset.cat;
+  if ($("#mycatResult").classList.contains("hidden") || !$(`#mycatTop [data-cat="${mycatPick}"]`)) {
+    showMycatChoice("Ton choix :", [{ cat: ALL_CATS.find((c) => c.id === mycatPick) }]);
+    $("#mycatResult").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  document.querySelectorAll("#mycat .cat-card").forEach((c) => c.classList.toggle("on", c.dataset.cat === mycatPick));
+});
+click("#mycatOk", () => {
+  const cat = ALL_CATS.find((c) => c.id === mycatPick) || ALL_CATS[0];
+  const name = $("#mycatName").value.trim().slice(0, 14) || cat.name;
+  save.hero = { id: cat.id, name: cat.id === "kichta" && !$("#mycatName").value.trim() ? "Kichta" : name };
+  persist();
+  applyLook();
+  refreshMenu();
+  toast(`${save.hero.name} est prêt${cat.id === "kichta" ? "e" : ""} à courir ! 🐾`, "power");
+  Sfx.play("fanfare", { volume: 0.6 });
+  show("menu");
+});
+click("#mycatBtn", openMycat);
+
 click("#pauseBtn", pauseGame);
 click("#resumeBtn", resumeGame);
 click("#quitBtn", toMenu);

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Catalogue Mon chat</title>
+<style>
+  body{margin:0;background:#ffe7f1;font:600 13px/1.2 system-ui,sans-serif;color:#5a2350}
+  #grid{display:grid;grid-template-columns:repeat(8,200px);gap:4px;padding:6px}
+  .cell{position:relative;width:200px;height:220px;background:#fff6fa;border-radius:12px;overflow:hidden}
+  .cell img{width:200px;height:200px;display:block}
+  .cell b{display:block;text-align:center;font-size:12px}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script type="module">
+  import * as THREE from "../../vendor/three.module.min.js";
+  import { RoomEnvironment } from "../../vendor/three.addons.min.js";
+  import { createToon, animateToon } from "../toons.js?v=c1";
+  import { CATS } from "../cats.js?v=c1";
+
+  const size = new URLSearchParams(location.search).has("export") ? 256 : 400;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(size, size);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xfff2f7);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.03).texture;
+  scene.environmentIntensity = 0.45;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xffc8dc, 1.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(2, 4, 3);
+  scene.add(sun);
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+  camera.position.set(2.1, 1.45, 2.85);
+  camera.lookAt(0, 0.72, 0);
+  const only = new URLSearchParams(location.search).get("only");
+  const exportMode = new URLSearchParams(location.search).has("export");
+  const all = [{ id: "kichta", name: "Kichta", look: null }, ...CATS];
+  const list = only ? all.filter((c) => only.split(",").includes(c.id)) : all;
+  window.thumbs = {};
+  const grid = document.querySelector("#grid");
+  for (const cat of list) {
+    const toon = createToon("kichta", { look: cat.look || undefined });
+    toon.rotation.y = 0.75;
+    scene.add(toon);
+    animateToon(toon, 0.6, "idle");
+    renderer.render(scene, camera);
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.innerHTML = `<img src="${renderer.domElement.toDataURL()}"><b>${cat.name}</b>`;
+    if (exportMode) window.thumbs[cat.id] = renderer.domElement.toDataURL("image/webp", 0.86);
+    grid.append(cell);
+    scene.remove(toon);
+  }
+  window.ready = true;
+</script>
+</body>
+</html>
