@@ -3,11 +3,12 @@
 // 2. On compare cette empreinte à celles de descriptions de traits (motif, couleur, poil,
 //    oreilles, visage, yeux, race) calculées à l'avance (ai/text.json).
 // 3. Chaque chat du catalogue reçoit une note selon ses traits ; on garde les meilleurs.
-import { CATS, catAttributes } from "./cats.js?v=b5";
-import { normalizeLook } from "./toons.js?v=b5";
+import { CATS, catAttributes } from "./cats.js?v=b6";
+import { normalizeLook } from "./toons.js?v=b6";
 
 const DIR = new URL("./ai/", import.meta.url).href;
-const WEIGHTS = { pattern: 1.0, color: 0.6, fur: 0.7, ears: 0.5, face: 0.5, eye: 0.15, breed: 0.5 };
+// Poids réglés sur 168 photos étiquetées (Oxford-IIIT Pet) et 45 photos de Wikimedia Commons
+const WEIGHTS = { pattern: 0.6, color: 0.3, fur: 0.7, ears: 0.2, face: 0.2, eye: 0.15, breed: 0.5 };
 const PIXEL_WEIGHT = 1.0; // poids des vraies couleurs mesurées sur la photo
 let enginePromise = null;
 
@@ -199,7 +200,7 @@ function catPalette(cat) {
   else if (p === "smoke") list = [[L.base, 0.7], [L.light, 0.3]];
   else if (["mackerel", "classic", "spotted", "rosette", "ticked"].includes(p)) list = [[L.base, 0.55], [L.stripe, 0.3], [L.light, 0.15]];
   else list = [[L.base, 0.85], [L.muzzle, 0.15]];
-  const white = { tuxedo: 0.4, bicolor: 0.5, van: 0.75, harlequin: 0.7, locket: 0.05, mitts: 0.08, gloves: 0.1 }[wv] || 0;
+  const white = { tuxedo: 0.4, bicolor: 0.5, van: 0.6, harlequin: 0.65, locket: 0.05, mitts: 0.08, gloves: 0.1 }[wv] || 0;
   if (white && p !== "calico") list = [...list.map(([c, k]) => [c, k * (1 - white)]), [W, white]];
   const pal = list.map(([hex, w]) => ({ lab: hexLab(hex), w }));
   paletteCache.set(cat.id, pal);

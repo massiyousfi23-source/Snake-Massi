@@ -19,7 +19,7 @@ const C = {
   redDark: "#b8541c",
   cream: "#f1cf9a",
   creamDark: "#d9a865",
-  brownTabby: "#a7774a",
+  brownTabby: "#9c7652",
   brownStripe: "#3e2a1c",
   silver: "#cfd3da",
   silverStripe: "#2e2e36",

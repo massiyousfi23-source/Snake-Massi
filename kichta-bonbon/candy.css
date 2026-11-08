@@ -307,3 +307,4 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 .name-field input { font: inherit; font-size: 20px; width: 190px; padding: 10px 16px; border-radius: 999px; border: 3px solid #f6b3d2; outline: none; text-align: center; color: var(--ink); background: #fff; user-select: text; -webkit-user-select: text; }
 .mycat-all { width: 100%; max-width: 760px; }
 .mycat-all summary { cursor: pointer; text-align: center; font-weight: 700; color: var(--pink-d); padding: 8px; list-style: none; }
+#mycatOk, .photo-btn { white-space: nowrap; padding-left: 30px; padding-right: 30px; font-size: clamp(18px, 5.4vw, 26px); letter-spacing: 1px; }

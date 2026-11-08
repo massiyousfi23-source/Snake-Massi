@@ -13,7 +13,7 @@
   env.backends.onnx.wasm.numThreads = 1;
   const id = "Xenova/mobileclip_s0";
   const tokenizer = await AutoTokenizer.from_pretrained(id);
-  const model = await CLIPTextModelWithProjection.from_pretrained(id, { dtype: "q8" });
+  const model = await CLIPTextModelWithProjection.from_pretrained(id, { dtype: "fp16" });
   const norm = (v) => { const n = Math.hypot(...v) || 1; return v.map((x) => x / n); };
   const groups = {};
   for (const [name, values] of Object.entries(GROUPS)) {

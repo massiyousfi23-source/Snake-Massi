@@ -2,9 +2,9 @@
 <body><canvas id="c" width="1280" height="720"></canvas>
 <script type="module">
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld } from "../world.js?v=b5";
-import { createToon, animateToon, addInjuries } from "../toons.js?v=b5";
-import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, setBald } from "../bosses.js?v=b5";
+import { createWorld } from "../world.js?v=b6";
+import { createToon, animateToon, addInjuries } from "../toons.js?v=b6";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, setBald } from "../bosses.js?v=b6";
 const world = createWorld(document.querySelector("#c"));
 world.setQuality(0); world.resize(1280, 720); world.clearDecor(0);
 const k = createToon("kichta"); world.scene.add(k);

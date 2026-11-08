@@ -3,12 +3,12 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b5";
-import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b5";
-import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b5";
-import { installThemes, themeIndex } from "./themes.js?v=b5";
-import * as Sfx from "./sfx.js?v=b5";
-import { CATS } from "./cats.js?v=b5";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b6";
+import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b6";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b6";
+import { installThemes, themeIndex } from "./themes.js?v=b6";
+import * as Sfx from "./sfx.js?v=b6";
+import { CATS } from "./cats.js?v=b6";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -1972,7 +1972,7 @@ function playCinematic(n = 1, fromRun = false, finished = false) {
     toast("Termine ce niveau pour débloquer sa cinématique !", "near");
     return;
   }
-  const src = `${level.video}?v=b5`;
+  const src = `${level.video}?v=b6`;
   if (!video.src.endsWith(src)) {
     video.src = src;
     video.load();
@@ -2086,7 +2086,7 @@ document.querySelectorAll(".back").forEach((b) =>
   }),
 );
 // --- Mon chat : la photo du joueur → la figurine qui lui ressemble le plus ---------------------
-const catThumb = (id) => `assets/cats/${id}.webp?v=b5`;
+const catThumb = (id) => `assets/cats/${id}.webp?v=b6`;
 const ALL_CATS = [{ id: "kichta", name: "Kichta", look: null }, ...CATS];
 let mycatPick = null;
 function catCard(cat, extra = "") {
@@ -2128,7 +2128,7 @@ async function analysePhoto(file) {
   bar.style.width = "4%";
   try {
     await img.decode();
-    const CatMatch = await import("./catmatch.js?v=b5");
+    const CatMatch = await import("./catmatch.js?v=b6");
     const res = await CatMatch.analyse(img, (k) => {
       status.textContent = `Préparation de l'IA… ${Math.round(k * 100)} %`;
       bar.style.width = `${4 + k * 80}%`;
