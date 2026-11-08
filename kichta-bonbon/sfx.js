@@ -43,39 +43,76 @@ function impulse(context, seconds = 1.2, decay = 3.4) {
   return buffer;
 }
 
-function load(name, url) {
-  return fetch(url)
+// Les fichiers sont téléchargés dès l'ouverture de la page (sans attendre
+// le premier toucher), pour que le son soit prêt dès le début de la partie.
+const raw = {};
+const downloads = Object.entries({ ...FILES, ...Object.fromEntries(Object.entries(MUSIC).map(([k, v]) => [`music:${k}`, v])) }).map(([name, url]) =>
+  fetch(url)
     .then((r) => r.arrayBuffer())
-    .then((data) => new Promise((ok, ko) => ctx.decodeAudioData(data, ok, ko)))
-    .then((buffer) => {
-      buffers[name] = buffer;
-      if (name === `music:${wanted}`) music(wanted);
+    .then((data) => {
+      raw[name] = data;
+      if (ctx) decode(name);
     })
-    .catch(() => {});
+    .catch(() => {}),
+);
+const decoding = new Set();
+function decode(name) {
+  if (!raw[name] || buffers[name] || decoding.has(name)) return;
+  decoding.add(name);
+  // Copie : Safari « consomme » le tampon pendant le décodage
+  ctx.decodeAudioData(raw[name].slice(0), (buffer) => {
+    buffers[name] = buffer;
+    if (name === `music:${wanted}`) music(wanted);
+  }, () => decoding.delete(name));
+}
+
+function createContext() {
+  if (ctx) return true;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return false;
+  ctx = new AC();
+  master = ctx.createGain();
+  master.gain.value = enabled ? 0.9 : 0;
+  master.connect(ctx.destination);
+  musicBus = ctx.createGain();
+  musicBus.gain.value = 0.55;
+  musicBus.connect(master);
+  reverb = ctx.createConvolver();
+  reverb.buffer = impulse(ctx);
+  const wet = ctx.createGain();
+  wet.gain.value = 0.16;
+  reverb.connect(wet).connect(master);
+  synthesize();
+  // Les effets d'abord, les musiques (plus lourdes) ensuite
+  Object.keys(FILES).forEach(decode);
+  Object.keys(MUSIC).forEach((k) => decode(`music:${k}`));
+  return true;
+}
+// Le contexte audio est préparé tout de suite (il reste en pause jusqu'au
+// premier toucher) : le décodage commence pendant que le menu s'affiche.
+try {
+  createContext();
+} catch {
+  ctx = null;
 }
 
 export function unlock() {
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = enabled ? 0.9 : 0;
-    master.connect(ctx.destination);
-    musicBus = ctx.createGain();
-    musicBus.gain.value = 0.55;
-    musicBus.connect(master);
-    reverb = ctx.createConvolver();
-    reverb.buffer = impulse(ctx);
-    const wet = ctx.createGain();
-    wet.gain.value = 0.16;
-    reverb.connect(wet).connect(master);
-    Object.entries(FILES).forEach(([name, url]) => load(name, url));
-    synthesize();
-    Object.entries(MUSIC).forEach(([name, url]) => load(`music:${name}`, url));
+  if (!createContext()) return;
+  if (ctx.state !== "running") {
+    ctx.resume().catch(() => {});
+    // iPhone : jouer un son vide pendant le toucher déverrouille l'audio
+    try {
+      const silent = ctx.createBufferSource();
+      silent.buffer = ctx.createBuffer(1, 1, 22050);
+      silent.connect(ctx.destination);
+      silent.start(0);
+    } catch {
+      // ignoré
+    }
   }
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  Object.keys(raw).forEach(decode);
 }
+export const ready = () => Promise.all(downloads);
 
 // Sons fabriqués directement : crachat de chat, roulement du coffre,
 // fanfare de récompense et scintillement.
@@ -155,6 +192,17 @@ function synthesize() {
       lp = lp * 0.7 + (Math.random() * 2 - 1) * 0.3;
       const env = on * Math.min(1, woof / 0.012) * Math.exp(-woof * (t < 0.2 ? 11 : 13));
       d[i] = (v * 0.32 + lp * 0.35) * env;
+    }
+  });
+  // Bourdonnement de mouche « bzzz »
+  buffers.buzz = make(0.7, (d, n) => {
+    let phase = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const f = 190 + Math.sin(t * 17) * 25 + Math.sin(t * 5) * 15;
+      phase += (2 * Math.PI * f) / sr;
+      const saw = ((phase / (2 * Math.PI)) % 1) * 2 - 1;
+      d[i] = saw * 0.35 * (0.6 + 0.4 * Math.sin(t * 60)) * Math.min(1, t / 0.05) * Math.min(1, (0.7 - t) / 0.2);
     }
   });
   // Petit cri aigu du hérisson

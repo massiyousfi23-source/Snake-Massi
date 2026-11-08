@@ -12,7 +12,7 @@ import {
   VerticalTiltShiftShader,
   RoomEnvironment,
 } from "../vendor/three.addons.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b4";
+import { candy, canvasTexture } from "./toons.js?v=b5";
 
 export const LANE = 2.3;
 export const BIOMES = [
@@ -184,6 +184,10 @@ export function createWorld(canvas) {
   let trackTex = null;
   function paintTrack(biome) {
     const t = canvasTexture(256, 256, (g, w, h) => {
+      if (biome.paintTrack) {
+        biome.paintTrack(g, w, h);
+        return;
+      }
       g.fillStyle = biome.track;
       g.fillRect(0, 0, w, h);
       // Couloirs séparés par des lignes de sucre
@@ -226,6 +230,30 @@ export function createWorld(canvas) {
     }
   }, true);
   railTex.repeat.set(1, 60);
+  // Murs le long de la piste pour les mondes « intérieurs » (appartement, ruelle…)
+  const wallMat = candy(0xffffff, { roughness: 0.7, clearcoat: 0.15, side: THREE.DoubleSide });
+  const sideWalls = [-1, 1].map((side) => {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(300, 14), wallMat);
+    wall.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    wall.position.set(side * 16, 6.6, 0);
+    // Le mur de gauche est retourné : la texture défile dans le même sens des deux côtés
+    if (side < 0) wall.scale.x = -1;
+    wall.receiveShadow = true;
+    wall.visible = false;
+    scene.add(wall);
+    return wall;
+  });
+  let wallTex = null;
+  function paintWalls(biome) {
+    if (wallTex) wallTex.dispose();
+    wallTex = null;
+    sideWalls.forEach((w) => (w.visible = !!biome.paintWall));
+    if (!biome.paintWall) return;
+    wallTex = canvasTexture(512, 256, (g, w, h) => biome.paintWall(g, w, h), true);
+    wallTex.repeat.set(300 / 24, 1);
+    wallMat.map = wallTex;
+    wallMat.needsUpdate = true;
+  }
   const railMat = candy(0xffffff, { map: railTex });
   const rails = [];
   for (const side of [-1, 1]) {
@@ -269,6 +297,8 @@ export function createWorld(canvas) {
     biomeBlend = instant ? 1 : 0;
     if (trackTex) trackTex.dispose();
     trackTex = paintTrack(b);
+    paintWalls(b);
+    rails.forEach((r) => (r.visible = !b.noRails));
     trackMat.map = trackTex;
     trackMat.needsUpdate = true;
     if (instant) applyBiome(1);
@@ -1307,6 +1337,8 @@ export function createWorld(canvas) {
     trackTex.offset.y = -track.position.z / (260 / 40);
     railTex.offset.y = (snap - 100) / (260 / 60);
     rails.forEach((r) => (r.position.z = snap - 100));
+    sideWalls.forEach((w) => (w.position.z = snap - 100));
+    if (wallTex) wallTex.offset.x = (snap - 100) / 24;
     sky.position.set(0, 0, snap);
     sunDisc.position.set(-60, 70, snap - 220);
     sun.position.set(playerX + 8, 22, snap + 6);
@@ -1319,7 +1351,7 @@ export function createWorld(canvas) {
       nextDecorZ -= 4.5 + Math.random() * 3.5;
     }
     if (nextRainbowZ > playerZ - 40) nextRainbowZ = playerZ - 140;
-    if (nextRainbowZ > playerZ - 160 && mode !== "menu") {
+    if (nextRainbowZ > playerZ - 160 && mode !== "menu" && !biome.theme) {
       const r = acquire("rainbow", rainbow);
       r.position.set(0, 0, nextRainbowZ);
       r.scale.setScalar(1);
@@ -1413,6 +1445,17 @@ export function createWorld(canvas) {
     acquire,
     release,
     OBSTACLES,
+    DECOR,
+    /** Modèle d'obstacle adapté au monde actuel (ex. arbre à chat dans l'appartement). */
+    obstacleBuilder(kind) {
+      const b = BIOMES[biomeIndex % BIOMES.length];
+      const name = b.obstacles && b.obstacles[kind];
+      if (name && OBSTACLES[name]) return { key: name, build: OBSTACLES[name] };
+      return { key: kind, build: OBSTACLES[kind] };
+    },
+    get biome() {
+      return BIOMES[biomeIndex % BIOMES.length];
+    },
     makePower,
     coinAlloc,
     coinFreeSlot,

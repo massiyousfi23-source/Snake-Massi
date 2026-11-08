@@ -3,7 +3,7 @@
 // - Pikou, le hérisson qui lance ses piques (boss final).
 // Les modèles regardent vers +Z.
 import * as THREE from "../vendor/three.module.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b4";
+import { candy, canvasTexture } from "./toons.js?v=b5";
 
 const SPHERE = new THREE.SphereGeometry(1, 32, 22);
 const SMALL = new THREE.SphereGeometry(1, 16, 12);
@@ -340,4 +340,232 @@ export function createSkate() {
   sk.add(part(new THREE.BoxGeometry(0.17, 0.05, 0.26), candy(0xff3d7a), 1, [0, 0, 0.02]));
   for (const zz of [-0.08, 0.1]) sk.add(part(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 14), candy(0xffd23f, { emissive: 0xffa000, emissiveIntensity: 0.4 }), 1, [0, -0.04, zz]).rotateZ(Math.PI / 2));
   return sk;
+}
+
+// ---------------------------------------------------------------------------
+// Chacha la chenille
+// ---------------------------------------------------------------------------
+export function createCaterpillar() {
+  const root = new THREE.Group();
+  const rig = new THREE.Group();
+  root.add(rig);
+  const green = candy(0x6fd34a);
+  const lime = candy(0xb5f06a);
+  const yellow = candy(0xffd23f);
+  const dark = candy(0x1d2a12);
+  const segs = [];
+  for (let i = 0; i < 7; i += 1) {
+    const seg = new THREE.Group();
+    const r = 0.36 - i * 0.025;
+    seg.add(part(SPHERE, i % 2 ? lime : green, r, [0, 0, 0]));
+    // Points jaunes sur le dos
+    for (const s of [-1, 1]) seg.add(part(SMALL, yellow, r * 0.18, [s * r * 0.55, r * 0.7, 0], false));
+    // Petites pattes
+    for (const s of [-1, 1]) {
+      const leg = part(CAPSULE, dark, [0.035, 0.06, 0.035], [s * r * 0.7, -r * 0.75, 0], false);
+      leg.userData.side = s;
+      seg.add(leg);
+    }
+    seg.position.set(0, r, -0.12 - i * 0.48);
+    rig.add(seg);
+    segs.push(seg);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, 0.62, 0.35);
+  rig.add(head);
+  head.add(part(SPHERE, green, [0.42, 0.4, 0.38]));
+  const eyeMat = eyeMaterial("#2a6a1a");
+  const eyes = [addEye(head, eyeMat, -0.17, 0.08, 0.31, 0.12, -0.3), addEye(head, eyeMat, 0.17, 0.08, 0.31, 0.12, 0.3)];
+  const brows = [brow(head, dark, -0.17, 0.25, 0.35, -0.45), brow(head, dark, 0.17, 0.25, 0.35, 0.45)];
+  for (const s of [-1, 1]) head.add(part(SPHERE, candy(0xff9bb5), [0.07, 0.04, 0.03], [s * 0.25, -0.1, 0.3], false));
+  const mouth = part(new THREE.TorusGeometry(0.07, 0.015, 6, 16, Math.PI), dark, 1, [0, -0.13, 0.37], false);
+  mouth.rotation.z = Math.PI;
+  head.add(mouth);
+  const antennae = [];
+  for (const s of [-1, 1]) {
+    const a = new THREE.Group();
+    a.position.set(s * 0.14, 0.32, 0.05);
+    a.add(part(CAPSULE, dark, [0.02, 0.17, 0.02], [0, 0.17, 0], false));
+    a.add(part(SMALL, candy(0xff5fa2), 0.06, [0, 0.38, 0], false));
+    a.rotation.z = -s * 0.35;
+    head.add(a);
+    antennae.push(a);
+  }
+  const stars = new THREE.Group();
+  for (let i = 0; i < 4; i += 1) stars.add(part(new THREE.OctahedronGeometry(0.06), candy(0xffe14d, { emissive: 0xffc400, emissiveIntensity: 0.8 }), 1, [Math.cos(i * 1.57) * 0.32, 0, Math.sin(i * 1.57) * 0.32], false));
+  stars.position.y = 0.5;
+  stars.visible = false;
+  head.add(stars);
+  const tears = [];
+  for (const s of [-1, 1]) {
+    const tear = part(SMALL, candy(0x6fd0ff, { transparent: true, opacity: 0.85, roughness: 0.02 }), [0.04, 0.06, 0.04], [s * 0.17, 0, 0.34], false);
+    tear.visible = false;
+    tear.userData.side = s;
+    head.add(tear);
+    tears.push(tear);
+  }
+  root.userData = { kind: "caterpillar", rig, head, segs, eyes, brows, antennae, stars, tears, flash: [green, lime] };
+  root.traverse((o) => o.isMesh && (o.castShadow = true));
+  return root;
+}
+
+/** pose : crawl, throw, dizzy, sad, hang (pendue à une ficelle, tête en bas) */
+export function animateCaterpillar(cat, t, pose = "crawl", { speed = 1 } = {}) {
+  const { rig, head, segs, eyes, antennae, stars, tears, brows } = cat.userData;
+  rig.position.set(0, 0, 0);
+  rig.rotation.set(0, 0, 0);
+  head.rotation.set(0, 0, 0);
+  const k = t * 9 * speed;
+  segs.forEach((s, i) => {
+    const r = 0.36 - i * 0.025;
+    // Ondulation de chenille qui avance
+    s.position.y = r + (pose === "crawl" || pose === "throw" ? Math.max(0, Math.sin(k - i * 0.9)) * 0.22 : 0);
+    s.position.x = pose === "hang" ? Math.sin(t * 3 + i * 0.6) * 0.05 * i : 0;
+    s.children.forEach((c) => c.userData.side && (c.rotation.x = Math.sin(k - i) * 0.6));
+  });
+  head.position.y = 0.62 + (pose === "crawl" ? Math.sin(k) * 0.05 : 0);
+  if (pose === "throw") head.rotation.x = -0.5 + Math.sin(t * 10) * 0.15;
+  antennae.forEach((a, i) => (a.rotation.x = Math.sin(t * 6 + i) * 0.25));
+  stars.visible = pose === "dizzy" || pose === "hang";
+  stars.rotation.y = t * 5;
+  const sad = pose === "sad" || pose === "hang";
+  brows.forEach((b, i) => (b.rotation.z = Math.PI / 2 + (i ? 1 : -1) * (sad ? -0.45 : 0.45)));
+  tears.forEach((tear, i) => {
+    tear.visible = sad;
+    if (tear.visible) {
+      const q = (t * 1.3 + i * 0.5) % 1;
+      tear.position.set(tear.userData.side * (0.18 + q * 0.03), 0.02 - q * 0.3, 0.34);
+    }
+  });
+  const blink = (t + 0.3) % 3.3 < 0.12 ? 0.15 : 1;
+  eyes.forEach((e) => (e.scale.y = pose === "dizzy" ? 0.5 : blink));
+}
+
+// ---------------------------------------------------------------------------
+// Moumouche la mouche
+// ---------------------------------------------------------------------------
+export function createFly() {
+  const root = new THREE.Group();
+  const rig = new THREE.Group();
+  root.add(rig);
+  const shell = candy(0x2a3d52, { metalness: 0.45, roughness: 0.18, clearcoat: 1, sheen: 1, sheenColor: 0x3dffb0 });
+  const stripe = candy(0x1a2230, { metalness: 0.3, roughness: 0.25 });
+  const body = new THREE.Group();
+  body.position.y = 1;
+  rig.add(body);
+  body.add(part(SPHERE, shell, [0.38, 0.34, 0.36]));
+  const abdomen = new THREE.Group();
+  abdomen.position.set(0, -0.05, -0.5);
+  body.add(abdomen);
+  abdomen.add(part(SPHERE, shell, [0.32, 0.28, 0.45]));
+  for (let i = 0; i < 3; i += 1) abdomen.add(part(new THREE.TorusGeometry(0.28 - i * 0.04, 0.035, 8, 24), stripe, 1, [0, 0, -0.1 - i * 0.14], false));
+  const head = new THREE.Group();
+  head.position.set(0, 0.06, 0.38);
+  body.add(head);
+  head.add(part(SPHERE, shell, [0.3, 0.27, 0.26]));
+  // Énormes yeux à facettes
+  const facets = canvasTexture(256, 128, (g, w, h) => {
+    g.fillStyle = "#c81e32";
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = "rgba(90,0,10,.55)";
+    g.lineWidth = 2;
+    for (let y = 0; y < h; y += 10) for (let x = (y / 10) % 2 ? 5 : 0; x < w; x += 10) g.strokeRect(x, y, 10, 10);
+    g.fillStyle = "rgba(255,255,255,.95)";
+    g.beginPath();
+    g.ellipse(w * 0.45, h * 0.35, 16, 12, -0.4, 0, Math.PI * 2);
+    g.fill();
+  });
+  const eyeMat = new THREE.MeshPhysicalMaterial({ map: facets, roughness: 0.1, clearcoat: 1 });
+  const eyes = [];
+  for (const s of [-1, 1]) {
+    const e = part(SPHERE, eyeMat, [0.2, 0.22, 0.2], [s * 0.2, 0.06, 0.12], false);
+    e.rotation.y = s * 0.6 - Math.PI / 2;
+    head.add(e);
+    eyes.push(e);
+  }
+  const brows = [brow(head, stripe, -0.2, 0.3, 0.2, -0.5), brow(head, stripe, 0.2, 0.3, 0.2, 0.5)];
+  const trunk = part(CAPSULE, stripe, [0.03, 0.08, 0.03], [0, -0.2, 0.2], false);
+  trunk.rotation.x = 0.6;
+  head.add(trunk, part(SMALL, candy(0xff7aa0), 0.045, [0, -0.29, 0.26], false));
+  // Ailes transparentes qui vibrent
+  const wingMat = new THREE.MeshPhysicalMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.45, roughness: 0.05, iridescence: 1, side: THREE.DoubleSide, depthWrite: false });
+  const wings = [];
+  for (const s of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.15, 0.3, -0.05);
+    const w = part(SPHERE, wingMat, [0.5, 0.02, 0.22], [s * 0.45, 0, -0.15], false);
+    pivot.add(w);
+    body.add(pivot);
+    wings.push(pivot);
+  }
+  const legs = [];
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 3; i += 1) {
+      const leg = part(CAPSULE, stripe, [0.025, 0.16, 0.025], [s * 0.25, -0.3, 0.15 - i * 0.18], false);
+      leg.rotation.z = s * 0.5;
+      body.add(leg);
+      legs.push(leg);
+    }
+  }
+  const tears = [];
+  for (const s of [-1, 1]) {
+    const tear = part(SMALL, candy(0x6fd0ff, { transparent: true, opacity: 0.85, roughness: 0.02 }), [0.035, 0.05, 0.035], [s * 0.2, -0.08, 0.3], false);
+    tear.visible = false;
+    tear.userData.side = s;
+    head.add(tear);
+    tears.push(tear);
+  }
+  root.userData = { kind: "fly", rig, body, head, abdomen, wings, eyes, brows, legs, tears, flash: [shell] };
+  root.traverse((o) => o.isMesh && (o.castShadow = true));
+  return root;
+}
+
+/** pose : fly, dive, sad (au sol, en pleurs), crawl */
+export function animateFly(fly, t, pose = "fly") {
+  const { rig, body, head, wings, legs, tears, brows } = fly.userData;
+  rig.position.set(0, 0, 0);
+  rig.rotation.set(0, 0, 0);
+  body.rotation.set(0, 0, 0);
+  const flying = pose === "fly" || pose === "dive";
+  body.position.y = flying ? 1 + Math.sin(t * 7) * 0.08 : 0.42;
+  if (pose === "dive") body.rotation.x = 0.5;
+  wings.forEach((w, i) => {
+    w.rotation.z = flying ? Math.sin(t * 90 + i * Math.PI) * 0.6 : (i ? -1 : 1) * 0.2;
+  });
+  legs.forEach((l, i) => (l.rotation.x = pose === "crawl" ? Math.sin(t * 14 + i) * 0.5 : flying ? 0.4 : Math.sin(t * 20 + i) * 0.4));
+  head.rotation.x = pose === "sad" ? 0.3 : 0;
+  const sad = pose === "sad";
+  brows.forEach((b, i) => (b.rotation.z = Math.PI / 2 + (i ? 1 : -1) * (sad ? -0.45 : 0.5)));
+  tears.forEach((tear, i) => {
+    tear.visible = sad;
+    if (tear.visible) {
+      const q = (t * 1.4 + i * 0.5) % 1;
+      tear.position.set(tear.userData.side * (0.2 + q * 0.03), -0.06 - q * 0.3, 0.3);
+    }
+  });
+}
+
+/** Une pomme qui roule (lancée par Chacha) et un sac-poubelle (lâché par Moumouche). */
+export function createApple() {
+  const g = new THREE.Group();
+  g.add(part(SPHERE, candy(0xff3b3b), [0.42, 0.4, 0.42], [0, 0.42, 0]));
+  g.add(part(CAPSULE, candy(0x6b3a1a), [0.03, 0.08, 0.03], [0, 0.88, 0]));
+  const leaf = part(SPHERE, candy(0x5ccc3a), [0.12, 0.02, 0.06], [0.1, 0.86, 0]);
+  leaf.rotation.z = 0.4;
+  g.add(leaf);
+  // Petit trou de chenille
+  g.add(part(SMALL, candy(0x5a2a10), 0.07, [0.2, 0.55, 0.32], false));
+  return g;
+}
+export function createTrashBag() {
+  const g = new THREE.Group();
+  const m = candy(0x2a2a36, { roughness: 0.15 });
+  g.add(part(SPHERE, m, [0.55, 0.45, 0.5], [0, 0.45, 0]));
+  g.add(part(CONE, m, [0.18, 0.3, 0.18], [0, 0.95, 0]));
+  g.add(part(new THREE.TorusGeometry(0.1, 0.03, 8, 16), candy(0xffd23f), 1, [0, 0.85, 0], false).rotateX(Math.PI / 2));
+  // Une arête de poisson qui dépasse
+  const bone = part(CAPSULE, candy(0xfff4e0), [0.02, 0.25, 0.02], [0.25, 0.8, 0.2], false);
+  bone.rotation.z = -0.8;
+  g.add(bone);
+  return g;
 }
