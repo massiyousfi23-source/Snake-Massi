@@ -38,7 +38,8 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx cap add android
-          npx capacitor-assets generate --android --iconBackgroundColor '#ff79b0' --splashBackgroundColor '#ffd6ea' || echo "Icônes par défaut"
+          # Les icônes sont un bonus : si l'outil d'icônes ne s'installe pas, on garde celles par défaut
+          (npm install --no-save --no-audit --no-fund @capacitor/assets@3 && npx capacitor-assets generate --android --iconBackgroundColor '#ff79b0' --splashBackgroundColor '#ffd6ea') || echo "Icônes par défaut"
           npx cap sync android
 
       - name: Compiler l'APK
