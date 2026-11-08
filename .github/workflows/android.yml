@@ -49,7 +49,12 @@ jobs:
           # Téléchargement de Gradle plus patient (les serveurs sont parfois lents)
           sed -i -e 's/networkTimeout=.*/networkTimeout=120000/' -e 's/-all\.zip/-bin.zip/' gradle/wrapper/gradle-wrapper.properties
           grep -q networkTimeout gradle/wrapper/gradle-wrapper.properties || echo "networkTimeout=120000" >> gradle/wrapper/gradle-wrapper.properties
-          for i in 1 2 3; do ./gradlew assembleDebug --no-daemon && exit 0; echo "Nouvel essai $i…"; sleep 20; done
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon && exit 0
+            echo "Nouvel essai $i…"; sleep 20
+            # Si GitHub ne répond pas, on prend Gradle sur un miroir
+            [ $i = 1 ] && sed -i -E 's#^distributionUrl=.*/(gradle-[0-9.]+-bin\.zip)#distributionUrl=https\\://mirrors.cloud.tencent.com/gradle/\1#' gradle/wrapper/gradle-wrapper.properties && grep distributionUrl gradle/wrapper/gradle-wrapper.properties
+          done
           exit 1
 
       - name: Renommer l'APK
