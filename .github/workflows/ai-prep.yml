@@ -31,7 +31,7 @@ jobs:
           for repo in ["Xenova/mobileclip_s0"]:
               try:
                   files = list_repo_files(repo); print(repo, files)
-                  allow = [f for f in files if f.endswith(".json") or f.endswith(".txt") or f in ("onnx/vision_model_quantized.onnx", "onnx/text_model_quantized.onnx", "onnx/vision_model_fp16.onnx")]
+                  allow = [f for f in files if f.endswith(".json") or f.endswith(".txt") or f in ("onnx/vision_model.onnx", "onnx/text_model_fp16.onnx", "onnx/vision_model_fp16.onnx")]
                   snapshot_download(repo, local_dir="out/models/" + repo, allow_patterns=allow)
                   import shutil; shutil.rmtree("out/models/" + repo + "/.cache", ignore_errors=True)
               except Exception as e:

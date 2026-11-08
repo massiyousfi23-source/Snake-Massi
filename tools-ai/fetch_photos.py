@@ -24,7 +24,7 @@ for cat in CATS:
         files = [m["title"] for m in r["query"]["categorymembers"] if m["title"].lower().endswith((".jpg", ".jpeg", ".png"))]
         random.shuffle(files); n = 0
         for f in files[:8]:
-            if n >= 3: break
+            if n >= 4: break
             info = api(action="query", titles=f, prop="imageinfo", iiprop="url", iiurlwidth=640)
             page = next(iter(info["query"]["pages"].values()))
             u = page["imageinfo"][0]["thumburl"]
