@@ -38,8 +38,23 @@ jobs:
                   print("échec", repo, e)
           P
           du -ah out/models | sort -h | tail -30
-      - name: Photos de test
-        run: python3 tools-ai/fetch_photos.py out/photos && ls out/photos | wc -l
+      - name: Photos de test (Oxford-IIIT Pet, races étiquetées ; jamais livrées dans le jeu)
+        run: |
+          mkdir -p out/photos
+          (curl -fsSL --retry 3 -o pets.tgz https://thor.robots.ox.ac.uk/datasets/pets/images.tar.gz || curl -fsSL --retry 3 -o pets.tgz https://www.robots.ox.ac.uk/~vgg/data/pets/data/images.tar.gz) && tar xzf pets.tgz
+          python3 - <<'P'
+          import os, random, subprocess
+          random.seed(7)
+          cats = ["Abyssinian", "Bengal", "Birman", "Bombay", "British_Shorthair", "Egyptian_Mau", "Maine_Coon", "Persian", "Ragdoll", "Russian_Blue", "Siamese", "Sphynx"]
+          files = os.listdir("images")
+          for c in cats:
+              mine = sorted(f for f in files if f.startswith(c + "_") and f.endswith(".jpg"))
+              random.shuffle(mine)
+              for f in mine[:14]:
+                  subprocess.run(["convert", "images/" + f, "-resize", "512x512>", "-quality", "85", "out/photos/" + f], check=False)
+          print(len(os.listdir("out/photos")))
+          P
+          python3 tools-ai/fetch_photos.py out/photos-commons || true
       - name: Pousser les fichiers sur la branche ai-files
         run: |
           cd out
