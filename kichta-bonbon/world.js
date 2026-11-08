@@ -12,7 +12,7 @@ import {
   VerticalTiltShiftShader,
   RoomEnvironment,
 } from "../vendor/three.addons.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b6";
+import { candy, canvasTexture } from "./toons.js?v=b7";
 
 export const LANE = 2.3;
 export const BIOMES = [
@@ -1227,7 +1227,26 @@ export function createWorld(canvas) {
   points.frustumCulled = false;
   scene.add(points);
   const parts = [];
+  let glareSaved = null;
+  /** Ralenti : la piste brille moins (sinon, caméra face au soleil, le vernis éblouit). */
+  function softGlare(on) {
+    if (on && !glareSaved) {
+      glareSaved = { clearcoat: trackMat.clearcoat, roughness: trackMat.roughness };
+      trackMat.clearcoat = 0.1;
+      trackMat.roughness = 0.75;
+    } else if (!on && glareSaved) {
+      Object.assign(trackMat, glareSaved);
+      glareSaved = null;
+    }
+  }
+  let burstsMuted = false;
+  /** Coup final au ralenti : pas de nouvelles étincelles, et on efface celles qui flottent devant la caméra. */
+  function muteBursts(on) {
+    burstsMuted = on;
+    if (on) parts.length = 0;
+  }
   function burst(x, y, z, color = 0xffd23f, count = 14, power = 5) {
+    if (burstsMuted) return;
     tmpColor.set(color);
     for (let i = 0; i < count; i += 1) {
       if (parts.length >= MAXP) parts.shift();
@@ -1461,6 +1480,8 @@ export function createWorld(canvas) {
     coinFreeSlot,
     coinSet,
     burst,
+    muteBursts,
+    softGlare,
     confetti,
     shake(amount) {
       shake = Math.max(shake, amount);

@@ -139,6 +139,32 @@ function synthesize() {
       d[i] = (b * 0.9 + a * 0.25) * env * (0.8 + 0.2 * Math.sin(t * 90)) + spit * Math.exp(-(t - 0.72) * 40);
     }
   });
+  // Coup final au ralenti : grand souffle qui descend + battements de cœur
+  buffers.slowmo = make(2.6, (d, n) => {
+    let a = 0;
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const white = Math.random() * 2 - 1;
+      a = a * 0.97 + white * 0.03;
+      const whoosh = a * 3.2 * Math.min(1, t / 0.08) * Math.exp(-t * 1.1);
+      const sweep = Math.sin(2 * Math.PI * (220 * t - 60 * t * t)) * 0.25 * Math.exp(-t * 2.2);
+      let beat = 0;
+      for (const b of [0.55, 0.78, 1.45, 1.68]) {
+        const u = t - b;
+        if (u > 0 && u < 0.3) beat += Math.sin(2 * Math.PI * 52 * u) * Math.exp(-u * 18) * 0.9;
+      }
+      d[i] = whoosh + sweep + beat;
+    }
+  });
+  // Impact final : boum grave et éclat
+  buffers.finalHit = make(1.6, (d, n) => {
+    for (let i = 0; i < n; i += 1) {
+      const t = i / sr;
+      const boom = Math.sin(2 * Math.PI * (70 - 30 * t) * t) * Math.exp(-t * 3.2);
+      const crack = (Math.random() * 2 - 1) * Math.exp(-t * 14) * 0.8;
+      d[i] = (boom + crack) * 0.95;
+    }
+  });
   // Roulement pendant que le coffre tremble
   buffers.rattle = make(0.12, (d, n) => {
     for (let i = 0; i < n; i += 1) {
@@ -274,6 +300,14 @@ export function music(name) {
   source.connect(gain).connect(musicBus);
   source.start();
   current = { name, source, gain };
+}
+
+/** Ralenti : la musique ralentit et s'efface un peu (on = false pour revenir). */
+export function slowMotion(on) {
+  if (!ctx || !musicBus) return;
+  const now = ctx.currentTime;
+  musicBus.gain.setTargetAtTime(on ? 0.18 : 0.55, now, on ? 0.12 : 0.3);
+  if (current) current.source.playbackRate.setTargetAtTime(on ? 0.6 : 1, now, on ? 0.15 : 0.3);
 }
 
 /** Pas de course : boucle légère dont le rythme suit la vitesse. */
