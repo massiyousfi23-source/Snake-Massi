@@ -3,7 +3,7 @@
 // - Pikou, le hérisson qui lance ses piques (boss final).
 // Les modèles regardent vers +Z.
 import * as THREE from "../vendor/three.module.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b6";
+import { candy, canvasTexture } from "./toons.js?v=b7";
 
 const SPHERE = new THREE.SphereGeometry(1, 32, 22);
 const SMALL = new THREE.SphereGeometry(1, 16, 12);

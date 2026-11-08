@@ -3,12 +3,12 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b6";
-import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b6";
-import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b6";
-import { installThemes, themeIndex } from "./themes.js?v=b6";
-import * as Sfx from "./sfx.js?v=b6";
-import { CATS } from "./cats.js?v=b6";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b7";
+import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b7";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b7";
+import { installThemes, themeIndex } from "./themes.js?v=b7";
+import * as Sfx from "./sfx.js?v=b7";
+import { CATS } from "./cats.js?v=b7";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -879,9 +879,92 @@ function unlockSkates() {
   flash("#ffd23f");
   world.confetti(P.x, 1.5, P.z - 2, 60);
 }
+// ---------------------------------------------------------------------------
+// Coup final au ralenti : la caméra fait le tour de Kichta, qui lance le
+// projectile avec un sourire narquois, puis le temps repart et le boss tombe.
+// ---------------------------------------------------------------------------
+const FIN_HOLD = 2.7; // durée du ralenti (secondes réelles)
+const FIN_OUT = 0.5; // retour à la vitesse normale
+const finLook = new THREE.Vector3();
+const finPos = new THREE.Vector3();
+const finBase = new THREE.Vector3();
+/** Le prochain projectile sera-t-il celui qui achève le boss ? */
+function isFinalBlow() {
+  return !!G.boss && !G.boss.leaving && G.boss.hp - G.rockets.length <= 1;
+}
+function startFinisher(rocket) {
+  rocket.final = true;
+  // Le projectile part de la patte levée de Kichta (un peu sur le côté, pour ne pas cacher son visage)
+  rocket.from.set(P.x - 0.45, P.y + 0.75, P.z - 0.8);
+  rocket.mesh.position.copy(rocket.from);
+  rocket.scale0 = rocket.mesh.scale.x;
+  rocket.mesh.scale.setScalar(rocket.scale0 * 0.6);
+  G.fin = { t: 0, rocket };
+  P.flip = 0;
+  world.muteBursts(true);
+  world.softGlare(true);
+  P.invuln = Math.max(P.invuln, FIN_HOLD + FIN_OUT + 0.8);
+  document.body.classList.add("finisher");
+  Sfx.slowMotion(true);
+  Sfx.play("slowmo", { volume: 0.95, vary: 0 });
+  Sfx.play("attack", { volume: 0.5, rate: 0.55, vary: 0, delay: 1.9 });
+}
+function stopFinisher() {
+  if (!G.fin) return;
+  G.fin = null;
+  world.muteBursts(false);
+  world.softGlare(false);
+  G.objects.forEach((o) => {
+    if (o.finHidden) (o.mesh.visible = true), (o.finHidden = false);
+  });
+  document.body.classList.remove("finisher");
+  Sfx.slowMotion(false);
+}
+/** Vitesse du temps du jeu pendant le coup final (1 = normal). */
+function finisherTimeScale(dt) {
+  const f = G.fin;
+  f.t += dt;
+  if (f.t >= FIN_HOLD + FIN_OUT) {
+    stopFinisher();
+    return 1;
+  }
+  if (f.t < 0.2) return 1 - (f.t / 0.2) * 0.96;
+  if (f.t < FIN_HOLD) return 0.04;
+  world.muteBursts(false);
+  return 0.04 + ((f.t - FIN_HOLD) / FIN_OUT) * 0.96;
+}
+/** Caméra du ralenti : un tour complet autour de Kichta, en passant tout près de son visage. */
+function finisherCamera() {
+  const f = G.fin;
+  const cam = world.camera;
+  // Les obstacles tout proches gêneraient la caméra : on les cache le temps du tour
+  G.objects.forEach((o) => {
+    const near = o.mesh.position.z > P.z - 9 && o.mesh.position.z < P.z + 5;
+    if (near && o.mesh.visible && f.t < FIN_HOLD) (o.mesh.visible = false), (o.finHidden = true);
+  });
+  const u = Math.min(1, f.t / FIN_HOLD);
+  const e = u * u * (3 - 2 * u);
+  const ang = e * Math.PI * 2; // 0 : derrière elle ; π : face à son visage
+  const face = Math.max(0, Math.cos(ang - Math.PI)) ** 1.5;
+  const R = 4.2 - face * 1.6;
+  finPos.set(P.x + Math.sin(ang) * R, P.y + 1.15 + (1 - face) * 0.85, P.z - 0.2 + Math.cos(ang) * R);
+  finLook.set(P.x, P.y + 0.8, P.z - 0.25).lerp(f.rocket.mesh.position, 0.25 * (1 - face));
+  // Fondu avec la caméra de course au début et à la fin
+  const inK = Math.min(1, f.t / 0.3);
+  const outK = f.t > FIN_HOLD ? Math.max(0, 1 - (f.t - FIN_HOLD) / (FIN_OUT * 0.9)) : 1;
+  let w = Math.min(inK, outK);
+  w = w * w * (3 - 2 * w);
+  finBase.set(P.x * 0.56, 1 + Math.max(0, P.y) * 0.6, P.z - 8);
+  cam.position.lerp(finPos, w);
+  cam.lookAt(finBase.lerp(finLook, w));
+  cam.fov += ((innerWidth < innerHeight ? 58 : 46) - cam.fov) * w;
+  cam.updateProjectionMatrix();
+}
+
 // Une pique renvoyée par Kichta sur ses patins
 function returnSpike(o) {
   removeObject(o);
+  const final = isFinalBlow();
   P.flip = 0.5;
   P.vy = Math.max(P.vy, 7);
   P.grounded = false;
@@ -891,28 +974,42 @@ function returnSpike(o) {
   const mesh = world.acquire("obs-spike-0", createSpike);
   mesh.position.set(P.x, P.y + 1, P.z - 0.5);
   G.rockets.push({ mesh, t: 0, from: mesh.position.clone(), spike: true });
-  toast("Renvoyée ! 🛼", "power");
+  if (final) startFinisher(G.rockets[G.rockets.length - 1]);
+  else toast("Renvoyée ! 🛼", "power");
 }
 function launchRocket() {
+  const final = isFinalBlow();
   const mesh = world.makePower("fish");
   mesh.position.set(P.x, P.y + 1, P.z);
   G.rockets.push({ mesh, t: 0, from: mesh.position.clone() });
+  if (final) startFinisher(G.rockets[G.rockets.length - 1]);
   Sfx.play("shot", { volume: 0.5, rate: 1.1 });
 }
 function updateRockets(dt) {
   for (let i = G.rockets.length - 1; i >= 0; i -= 1) {
     const r = G.rockets[i];
-    r.t += dt / (r.spike ? 0.4 : 0.55);
+    // Coup final : le projectile quitte lentement la patte de Kichta pendant le tour de caméra
+    if (r.final && G.fin && G.fin.t < FIN_HOLD) r.t = 0.07 * (G.fin.t / FIN_HOLD);
+    else r.t += dt / (r.spike ? 0.4 : 0.55);
     const target = boss.position.clone().add(new THREE.Vector3(0, G.boss && (G.boss.kind === "dog" || G.boss.kind === "hedgehog") ? 0.9 : 1, 0));
     const pos = r.from.clone().lerp(target, Math.min(1, r.t));
     pos.y += Math.sin(Math.min(1, r.t) * Math.PI) * (r.spike ? 1 : 2.5);
     r.mesh.position.copy(pos);
     r.mesh.lookAt(target);
     if (r.spike) r.mesh.rotateY(Math.PI);
+    // Pendant le ralenti, peu d'étincelles (sinon elles s'accumulent devant la caméra)
     world.burst(pos.x, pos.y, pos.z, r.spike ? 0xffd23f : 0xff8a3d, 2, 1.5);
     if (r.t >= 1) {
       world.release(r.mesh);
       G.rockets.splice(i, 1);
+      if (r.scale0) r.mesh.scale.setScalar(r.scale0);
+      if (r.final) {
+        // Impact du coup final
+        Sfx.play("finalHit", { volume: 1, vary: 0 });
+        flash("#ffffff");
+        world.shake(0.9);
+        world.burst(target.x, target.y, target.z, 0xffd23f, 80, 12);
+      }
       hurtBoss(target);
     }
   }
@@ -946,6 +1043,7 @@ function worldRotation() {
 }
 
 function startRun() {
+  stopFinisher();
   clearTimeout(G.cineTimer);
   Sfx.unlock();
   Sfx.play("click", { volume: 0.5 });
@@ -1082,6 +1180,7 @@ function resumeGame() {
   Sfx.music(G.boss ? "boss" : "run");
 }
 function toMenu() {
+  stopFinisher();
   clearTimeout(G.cineTimer);
   clearInterval(G.reviveTimer);
   clearTrack();
@@ -1424,6 +1523,10 @@ function tick(dt, draw) {
     slowTime = 0;
   }
   }
+  // Coup final : le temps du jeu ralentit (la caméra, elle, garde le temps réel)
+  const realDt = dt;
+  if (G.fin && G.mode === "run") dt *= finisherTimeScale(realDt);
+  else if (G.fin && G.mode !== "pause") stopFinisher();
   if (G.mode !== "pause" && G.mode !== "cinema") {
     G.t += dt;
     if (G.mode === "run" || G.mode === "dying") {
@@ -1449,19 +1552,24 @@ function tick(dt, draw) {
   const bristle = Math.min(1, (G.hissT || 0) / 0.6);
   kichta.userData.bristle += (bristle - kichta.userData.bristle) * Math.min(1, dt * 10);
   pucci.userData.bristle = pucciHurt.userData.bristle = kichta.userData.bristle;
-  animateToon(kichta, G.t, pose, { speed: G.speed / 14, lean: (laneX(P.lane) - P.x) * 0.12, squash: P.squash, flip: flipK * flipK * (3 - 2 * flipK) });
+  if (G.fin) {
+    // Pose de lancer, l'air sûre d'elle
+    const smug = Math.min(1, G.fin.t / 0.45) * (G.fin.t > FIN_HOLD ? Math.max(0, 1 - (G.fin.t - FIN_HOLD) / FIN_OUT) : 1);
+    animateToon(kichta, G.t, G.fin.t < FIN_HOLD + 0.2 ? "throw" : pose, { speed: G.speed / 14, smug });
+  } else animateToon(kichta, G.t, pose, { speed: G.speed / 14, lean: (laneX(P.lane) - P.x) * 0.12, squash: P.squash, flip: flipK * flipK * (3 - 2 * flipK) });
   if (G.mode === "reveal") updateReveal(dt);
   balloons.visible = POWER.balloon > 0;
   shieldBubble.visible = POWER.shield > 0;
   shieldBubble.material.opacity = 0.22 + Math.sin(G.t * 6) * 0.06 + (POWER.shield > 0 && POWER.shield < 2 ? Math.sin(G.t * 25) * 0.15 : 0);
   magnetRing.visible = POWER.magnet > 0;
   magnetRing.rotation.z += dt * 4;
-  kichta.visible = !(P.invuln > 0 && G.mode === "run" && Math.floor(G.t * 14) % 2 === 0);
+  kichta.visible = !!G.fin || !(P.invuln > 0 && G.mode === "run" && Math.floor(G.t * 14) % 2 === 0);
 
   if (G.mode !== "pause") {
-    world.update(dt, G.t, { playerX: P.x, playerY: P.y, playerZ: P.z, speed: G.mode === "run" ? G.speed : 0, mode: inMenu ? "menu" : G.mode, fly: POWER.balloon > 0 });
-    Sfx.setRunning(G.mode === "run" && P.grounded && P.slide <= 0, G.speed / 16);
+    world.update(dt, G.t, { playerX: P.x, playerY: P.y, playerZ: P.z, speed: G.mode === "run" && !G.fin ? G.speed : 0, mode: inMenu ? "menu" : G.mode, fly: POWER.balloon > 0 });
+    Sfx.setRunning(G.mode === "run" && P.grounded && P.slide <= 0 && !G.fin, G.speed / 16);
   }
+  if (G.fin) finisherCamera();
   if (G.mode === "reveal") {
     // Caméra de la cérémonie : Kichta à côté du coffre
     const portrait = innerWidth < innerHeight;
@@ -1972,7 +2080,7 @@ function playCinematic(n = 1, fromRun = false, finished = false) {
     toast("Termine ce niveau pour débloquer sa cinématique !", "near");
     return;
   }
-  const src = `${level.video}?v=b6`;
+  const src = `${level.video}?v=b7`;
   if (!video.src.endsWith(src)) {
     video.src = src;
     video.load();
@@ -2086,7 +2194,7 @@ document.querySelectorAll(".back").forEach((b) =>
   }),
 );
 // --- Mon chat : la photo du joueur → la figurine qui lui ressemble le plus ---------------------
-const catThumb = (id) => `assets/cats/${id}.webp?v=b6`;
+const catThumb = (id) => `assets/cats/${id}.webp?v=b7`;
 const ALL_CATS = [{ id: "kichta", name: "Kichta", look: null }, ...CATS];
 let mycatPick = null;
 function catCard(cat, extra = "") {
@@ -2129,7 +2237,7 @@ async function analysePhoto(file) {
   bar.style.width = "4%";
   try {
     await img.decode();
-    const CatMatch = await import("./catmatch.js?v=b6");
+    const CatMatch = await import("./catmatch.js?v=b7");
     const res = await CatMatch.analyse(img, (k) => {
       status.textContent = `Préparation de l'IA… ${Math.round(k * 100)} %`;
       bar.style.width = `${4 + k * 80}%`;
@@ -2227,5 +2335,5 @@ if ("serviceWorker" in navigator && !location.search.includes("debug")) navigato
 
 // Mode test (?debug)
 if (location.search.includes("debug")) {
-  window.kichta = { G, P, POWER, save, tick, themeIndex, menuBiome, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, LEVELS, endBoss, hurtBoss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist };
+  window.kichta = { G, P, POWER, save, tick, themeIndex, menuBiome, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, LEVELS, endBoss, hurtBoss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist, launchRocket, isFinalBlow };
 }

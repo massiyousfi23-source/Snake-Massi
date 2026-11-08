@@ -1,10 +1,10 @@
 // Cinématique du niveau 4 (fin du jeu) : Kichta arrache les piques de Pikou,
 // en fait des brochettes de pâtée et les savoure devant le hérisson désemparé.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld } from "../world.js?v=b6";
-import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b6";
-import { createHedgehog, animateHedgehog, createSkate } from "../bosses.js?v=b6";
-import { texts, seg, lerp, FPS, W, H, makePateeChunk } from "./cine-kit.js?v=b6";
+import { createWorld } from "../world.js?v=b7";
+import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b7";
+import { createHedgehog, animateHedgehog, createSkate } from "../bosses.js?v=b7";
+import { texts, seg, lerp, FPS, W, H, makePateeChunk } from "./cine-kit.js?v=b7";
 
 const world = createWorld(document.querySelector("#scene"));
 world.setQuality(0);

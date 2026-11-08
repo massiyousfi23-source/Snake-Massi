@@ -1,9 +1,9 @@
 // Cinématique du niveau 3 : Kichta grimpe sur Rocky le chien et fait du rodéo.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld, BIOMES } from "../world.js?v=b6";
-import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b6";
-import { createDog, animateDog } from "../bosses.js?v=b6";
-import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b6";
+import { createWorld, BIOMES } from "../world.js?v=b7";
+import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b7";
+import { createDog, animateDog } from "../bosses.js?v=b7";
+import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b7";
 
 const world = createWorld(document.querySelector("#scene"));
 world.setQuality(0);

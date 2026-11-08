@@ -310,3 +310,12 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; }
 #mycatOk, .photo-btn { white-space: nowrap; padding-left: 30px; padding-right: 30px; font-size: clamp(18px, 5.4vw, 26px); letter-spacing: 1px; }
 .mycat-head { display: flex; align-items: center; gap: 12px; }
 #mycatMine { width: 64px; height: 64px; object-fit: cover; border-radius: 18px; box-shadow: 0 3px 0 #f0b7d2; }
+
+/* Coup final au ralenti : bandes de cinéma, interface masquée */
+body::before, body::after { content: ""; position: fixed; left: 0; right: 0; height: 0; background: #12060f; z-index: 40; pointer-events: none; transition: height .35s ease; }
+body::before { top: 0; }
+body::after { bottom: 0; }
+body.finisher::before, body.finisher::after { height: 11vh; }
+#hud, #controls, #bossBar { transition: opacity .3s; }
+body.finisher #controls { pointer-events: none; }
+body.finisher #hud, body.finisher #controls, body.finisher #bossBar, body.finisher #banner, body.finisher #toasts { opacity: 0; }

@@ -1129,6 +1129,9 @@ export function createToon(kind = "kichta", { skin = "caramel", look = null } = 
   if (pucci) head.add(mesh(GEO.small, stripeMat, [0.022, 0.018, 0.012], [-0.022, -0.065, 0.425]));
   // Yeux
   const eyes = [];
+  const lids = [];
+  const lidMat = candy(pucci ? 0x1d1822 : s.base);
+  const lidGeo = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
   for (const side of [-1, 1]) {
     const eye = new THREE.Group();
     eye.position.set(side * 0.16, 0.04, 0.4);
@@ -1139,6 +1142,15 @@ export function createToon(kind = "kichta", { skin = "caramel", look = null } = 
     eye.add(ball);
     head.add(eye);
     eyes.push(eye);
+    // Paupière (cachée) : elle descend à moitié quand Kichta prend un air narquois
+    const lid = new THREE.Group();
+    lid.position.copy(eye.position);
+    lid.rotation.y = eye.rotation.y;
+    const dome = mesh(lidGeo, lidMat, [0.088, 0.155, 0.135], [0, 0, 0], false);
+    lid.add(dome);
+    lid.visible = false;
+    head.add(lid);
+    lids.push(lid);
     if (pucci) {
       // Sourcils froncés de méchante
       const brow = mesh(GEO.capsule, stripeMat, [0.025, 0.11, 0.025], [side * 0.16, 0.2, 0.36], false);
@@ -1253,7 +1265,7 @@ export function createToon(kind = "kichta", { skin = "caramel", look = null } = 
   rig.add(bristles);
 
   if (L && L.body === "big") body.scale.setScalar(1.07);
-  root.userData = { rig, body, head, legs, tail, eyes, slots, kind, bristles, bristle: 0, flash: [bodyMat, headMat, baseMat], outfit: {}, look: L };
+  root.userData = { rig, body, head, legs, tail, eyes, lids, smile, slots, kind, bristles, bristle: 0, flash: [bodyMat, headMat, baseMat], outfit: {}, look: L };
   return root;
 }
 
@@ -1274,8 +1286,8 @@ export function dressToon(toon, { hat = "none", face = "none", neck = "none", ba
 /**
  * pose : run, jump, fall, slide, idle, hit, fly, win, throw
  */
-export function animateToon(toon, t, pose = "run", { speed = 1, lean = 0, squash = 0, flip = 0 } = {}) {
-  const { rig, body, head, legs, tail, eyes, slots, bristles } = toon.userData;
+export function animateToon(toon, t, pose = "run", { speed = 1, lean = 0, squash = 0, flip = 0, smug = 0 } = {}) {
+  const { rig, body, head, legs, tail, eyes, lids, smile, slots, bristles } = toon.userData;
   const bristle = toon.userData.bristle || 0;
   const stride = t * 13 * speed;
   rig.position.set(0, 0, 0);
@@ -1340,6 +1352,26 @@ export function animateToon(toon, t, pose = "run", { speed = 1, lean = 0, squash
   // Clignement des yeux
   const blink = (t + 2) % 3.7 < 0.12 ? 0.15 : 1;
   eyes.forEach((e) => (e.scale.y = blink));
+  // Air narquois : yeux mi-clos en biais, sourire en coin, menton levé
+  eyes.forEach((e, i) => {
+    e.rotation.z = smug * (i === 0 ? -0.25 : 0.25);
+    if (smug) e.scale.y = 1 - smug * 0.15;
+  });
+  (lids || []).forEach((l, i) => {
+    l.visible = smug > 0.05;
+    // Paupière qui descend en biais (plus basse côté extérieur)
+    l.rotation.x = 0.2 - (1 - smug) * 1.4;
+    l.rotation.z = smug * (i === 0 ? -0.3 : 0.3);
+  });
+  if (smile) {
+    smile.rotation.z = Math.PI + smug * 0.45;
+    smile.position.x = smug * 0.03;
+    smile.scale.set(1 + smug * 0.7, 1 + smug * 0.3, 1 + smug * 0.5);
+  }
+  if (smug) {
+    head.rotation.x -= smug * 0.18;
+    head.rotation.z += smug * 0.14;
+  }
 
   tail.forEach((seg, i) => {
     const wave = pose === "run" ? 9 : 3.5;
