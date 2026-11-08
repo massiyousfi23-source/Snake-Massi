@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="candy.css?v=b5">
+  <link rel="stylesheet" href="candy.css?v=b6">
   <link rel="modulepreload" href="../vendor/three.core.min.js">
   <link rel="modulepreload" href="../vendor/three.module.min.js">
   <title>Kichta Run Bonbon</title>
@@ -62,6 +62,7 @@
           <button id="missionsBtn"><span class="ico">🎯</span><span>Missions</span><em id="levelBadge">×1</em></button>
           <button id="chestBtn"><span class="ico">🎁</span><span>Coffre</span><em id="chestBadge" class="hidden">!</em></button>
           <button id="cinemaBtn"><span class="ico">🎬</span><span>Cinéma</span></button>
+          <button id="mycatBtn"><span class="ico">📸</span><span>Mon chat</span><em id="mycatBadge">NEW</em></button>
         </div>
       </div>
     </section>
@@ -91,7 +92,28 @@
     <section id="cinema" class="screen panel hidden">
       <header><button class="back round" aria-label="Retour">◀</button><h2>Cinéma</h2><span></span></header>
       <ul id="cinemaList" class="missions"></ul>
-      <p class="note">Chaque niveau terminé débloque sa cinématique. Le niveau 4 est le boss final !</p>
+      <p class="note">Chaque niveau terminé débloque sa cinématique. Le niveau 6 est le boss final !</p>
+    </section>
+
+    <section id="mycat" class="screen panel hidden">
+      <header><button class="back round" aria-label="Retour">◀</button><h2>Mon chat</h2><span></span></header>
+      <div id="mycatHome" class="mycat-card">
+        <p class="mycat-intro">Prends ton chat en photo : on trouve la figurine qui lui ressemble le plus, et c'est lui qui court !</p>
+        <label class="big photo-btn">📷 PHOTO DE MON CHAT<input id="mycatFile" type="file" accept="image/*" hidden></label>
+        <p class="note">La photo reste sur ton téléphone : elle n'est envoyée nulle part. Conseil : ton chat bien en vue, de face, avec de la lumière.</p>
+      </div>
+      <div id="mycatWork" class="mycat-card hidden">
+        <img id="mycatPhoto" alt="Photo de ton chat">
+        <p id="mycatStatus">Analyse en cours…</p>
+        <div class="bar"><i id="mycatBar"></i></div>
+      </div>
+      <div id="mycatResult" class="hidden">
+        <div class="mycat-head"><img id="mycatMine" class="hidden" alt=""><h3 id="mycatTitle">Il te ressemble…</h3></div>
+        <div id="mycatTop" class="cat-grid top"></div>
+        <label class="name-field">Son prénom <input id="mycatName" maxlength="14" placeholder="Ex. : Minou" autocomplete="off"></label>
+        <button id="mycatOk" class="big">C'EST MON CHAT !</button>
+      </div>
+      <details id="mycatAll" class="mycat-all"><summary>Voir tous les chats</summary><div id="mycatGrid" class="cat-grid"></div></details>
     </section>
 
     <section id="pause" class="screen dim hidden">
@@ -130,11 +152,11 @@
 
     <div id="banner" class="hidden"></div>
     <div id="flash"></div>
-    <video id="cinematic" class="hidden" playsinline preload="metadata" src="assets/cine-1.mp4?v=b5"></video>
+    <video id="cinematic" class="hidden" playsinline preload="metadata" src="assets/cine-1.mp4?v=b6"></video>
     <button id="skipVideo" class="hidden">Passer ▶▶</button>
     <button id="videoSound" class="hidden">🔊 Activer le son</button>
     <button id="videoPlay" class="big hidden">▶ REGARDER</button>
   </div>
-  <script type="module" src="main.js?v=b5"></script>
+  <script type="module" src="main.js?v=b6"></script>
 </body>
 </html>

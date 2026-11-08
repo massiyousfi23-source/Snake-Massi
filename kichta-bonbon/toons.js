@@ -177,6 +177,316 @@ function pucciHeadTexture() {
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// Chats personnalisés (« Mon chat ») : une robe décrite par un « look »
+// (voir cats.js), peinte sur la tête et le corps.
+// ---------------------------------------------------------------------------
+const WHITE = "#fbf8f3";
+const TABBY = ["mackerel", "classic", "spotted", "rosette", "ticked"];
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashString(str) {
+  let h = 2166136261;
+  for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
+export function mixColor(a, b, k) {
+  return "#" + new THREE.Color(a).lerp(new THREE.Color(b), k).getHexString();
+}
+/** Complète un look : couleurs de chaque partie du corps selon la robe. */
+export function normalizeLook(look) {
+  const L = { pattern: "solid", white: "none", fur: "short", ears: "normal", face: "normal", body: "normal", nose: "#f2a0a0", eye: "#e8b52a", ...look };
+  L.base = L.base || "#8a8a8a";
+  L.stripe = L.stripe || mixColor(L.base, "#1a1210", 0.6);
+  L.light = L.light || mixColor(L.base, "#ffffff", 0.45);
+  L.patch = L.patch || "#e8863a";
+  L.seed = L.seed || hashString(JSON.stringify([L.base, L.stripe, L.pattern, L.white, L.patch]));
+  const tabby = TABBY.includes(L.pattern);
+  const point = L.pattern === "point";
+  const w = L.white;
+  const whiteFace = ["tuxedo", "bicolor", "van", "harlequin", "all"].includes(w);
+  const whitePaws = whiteFace || w === "mitts" || w === "gloves";
+  L.muzzle = point ? L.stripe : whiteFace ? WHITE : tabby ? L.light : mixColor(L.base, "#ffffff", 0.16);
+  L.chest = w !== "none" && w !== "mitts" && w !== "gloves" ? WHITE : point || tabby ? L.light : mixColor(L.base, "#ffffff", 0.1);
+  L.paw = whitePaws ? WHITE : point ? L.stripe : tabby ? L.light : L.base;
+  L.leg = w === "van" || w === "harlequin" || w === "all" ? WHITE : point ? L.stripe : L.base;
+  L.legRing = tabby && !["van", "harlequin", "all"].includes(w) ? L.stripe : null;
+  L.ear = w === "all" ? WHITE : point || tabby ? L.stripe : L.pattern === "calico" ? L.patch : L.base;
+  if (L.fur === "hairless") {
+    L.muzzle = mixColor(L.base, "#ffffff", 0.2);
+    L.paw = L.base;
+  }
+  return L;
+}
+
+function paintMarkings(g, w, h, L, area, r) {
+  const { pattern } = L;
+  g.strokeStyle = L.stripe;
+  g.fillStyle = L.stripe;
+  g.lineCap = "round";
+  if (pattern === "mackerel") {
+    for (let x = 18; x < w; x += 36) {
+      if (area === "body" && (x < 40 || x > w - 40)) continue;
+      g.lineWidth = 11 + r() * 4;
+      g.beginPath();
+      for (let y = 0; y <= h * 0.78; y += 8) {
+        const px = x + Math.sin(y * 0.05 + x) * 7;
+        if (y === 0) g.moveTo(px, y);
+        else g.lineTo(px, y);
+      }
+      g.stroke();
+    }
+  } else if (pattern === "classic") {
+    for (const cx of [w * 0.25, w * 0.75]) {
+      g.lineWidth = 16;
+      g.beginPath();
+      g.ellipse(cx, h * 0.44, 62, 46, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.beginPath();
+      g.ellipse(cx, h * 0.44, 22, 16, 0, 0, Math.PI * 2);
+      g.fill();
+      g.lineWidth = 12;
+      g.beginPath();
+      g.arc(cx, h * 0.44, 96, -2.6, -0.5);
+      g.stroke();
+    }
+    g.lineWidth = 14;
+    for (const x of [w * 0.47, w * 0.53]) {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, h * 0.3);
+      g.stroke();
+    }
+  } else if (pattern === "spotted" || pattern === "rosette") {
+    for (let i = 0; i < 70; i += 1) {
+      const x = r() * w;
+      const y = 6 + r() * h * 0.66;
+      const rx = 8 + r() * 9;
+      const ry = 6 + r() * 6;
+      g.fillStyle = L.stripe;
+      g.beginPath();
+      g.ellipse(x, y, rx, ry, r() * 3, 0, Math.PI * 2);
+      g.fill();
+      if (pattern === "rosette") {
+        g.fillStyle = mixColor(L.base, L.stripe, 0.35);
+        g.beginPath();
+        g.ellipse(x, y, rx * 0.55, ry * 0.5, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  } else if (pattern === "ticked") {
+    for (let i = 0; i < 2600; i += 1) {
+      g.globalAlpha = 0.25;
+      g.fillRect(r() * w, r() * h * 0.8, 2, 3);
+    }
+    g.globalAlpha = 1;
+    const grd = g.createLinearGradient(0, 0, 0, h * 0.25);
+    grd.addColorStop(0, L.stripe);
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h * 0.25);
+  } else if (pattern === "smoke") {
+    const grd = g.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(0.55, "rgba(0,0,0,0)");
+    grd.addColorStop(1, L.light);
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h);
+  } else if (pattern === "tortie" || pattern === "calico" || pattern === "torbie") {
+    const big = pattern === "calico";
+    const n = big ? 9 : 60;
+    for (let i = 0; i < n; i += 1) {
+      g.fillStyle = i % 3 === 2 && !big ? mixColor(L.patch, "#ffffff", 0.25) : L.patch;
+      g.beginPath();
+      const x = r() * w;
+      const y = r() * h * 0.85;
+      const rad = big ? 34 + r() * 30 : 8 + r() * 16;
+      for (let k = 0; k <= 12; k += 1) {
+        const a = (k / 12) * Math.PI * 2;
+        const rr = rad * (0.7 + r() * 0.5);
+        g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8);
+      }
+      g.fill();
+    }
+    if (pattern === "torbie") {
+      g.globalAlpha = 0.55;
+      paintMarkings(g, w, h, { ...L, pattern: "mackerel" }, area, r);
+      g.globalAlpha = 1;
+    }
+  }
+}
+
+function lookHeadTexture(L) {
+  return canvasTexture(512, 256, (g, w, h) => {
+    const r = rng(L.seed);
+    const face = w * 0.25;
+    g.fillStyle = L.pattern === "point" ? L.light : L.base;
+    g.fillRect(0, 0, w, h);
+    const tabby = TABBY.includes(L.pattern) || L.pattern === "torbie";
+    if (L.pattern === "tortie" || L.pattern === "calico" || L.pattern === "torbie") {
+      // Visage partagé en deux couleurs, très typique des écailles de tortue
+      g.fillStyle = L.patch;
+      g.fillRect(face, 0, w * 0.32, h);
+      paintMarkings(g, w, h, L, "head", r);
+    } else if (!tabby) paintMarkings(g, w, h, L, "head", r);
+    if (tabby) {
+      g.strokeStyle = L.stripe;
+      g.lineCap = "round";
+      g.lineWidth = 9;
+      g.beginPath();
+      g.moveTo(face - 38, 70);
+      g.lineTo(face - 22, 30);
+      g.lineTo(face, 62);
+      g.lineTo(face + 22, 30);
+      g.lineTo(face + 38, 70);
+      g.stroke();
+      if (L.pattern === "spotted" || L.pattern === "rosette") paintMarkings(g, w, h * 0.5, L, "head", r);
+      else if (L.pattern !== "ticked") {
+        g.lineWidth = 12;
+        for (let x = face + 70; x < face + 440; x += 34) {
+          g.beginPath();
+          g.moveTo(x % w, 0);
+          g.quadraticCurveTo((x + 12) % w, 50, (x + 4) % w, 118);
+          g.stroke();
+        }
+      }
+      g.lineWidth = 7;
+      for (const side of [-1, 1]) {
+        for (const dy of [0, 20]) {
+          g.beginPath();
+          g.moveTo(face + side * 70, 128 + dy);
+          g.lineTo(face + side * 104, 124 + dy * 1.3);
+          g.stroke();
+        }
+      }
+    }
+    if (L.fur === "hairless") {
+      g.strokeStyle = mixColor(L.base, "#5a2a2a", 0.25);
+      g.lineWidth = 3;
+      for (let i = 0; i < 4; i += 1) {
+        g.beginPath();
+        g.moveTo(face - 40, 30 + i * 9);
+        g.quadraticCurveTo(face, 24 + i * 9, face + 40, 30 + i * 9);
+        g.stroke();
+      }
+    }
+    // Zones blanches du visage
+    const wv = L.white;
+    g.fillStyle = WHITE;
+    if (wv === "tuxedo" || wv === "bicolor" || wv === "calico" || L.pattern === "calico") {
+      const top = wv === "tuxedo" ? 40 : 18;
+      const spread = wv === "tuxedo" ? 90 : 120;
+      g.beginPath();
+      g.moveTo(face - 7, top);
+      g.lineTo(face + 7, top);
+      g.quadraticCurveTo(face + 16, 120, face + spread, h);
+      g.lineTo(face - spread, h);
+      g.quadraticCurveTo(face - 16, 120, face - 7, top);
+      g.fill();
+    } else if (wv === "van" || wv === "harlequin" || wv === "all") {
+      g.fillRect(0, wv === "all" ? 0 : h * 0.3, w, h);
+      if (wv !== "all") {
+        // Calotte colorée entre les oreilles, coupée par une liste blanche
+        g.fillRect(face - 12, 0, 24, h);
+      }
+    }
+    // Masque des colourpoints
+    if (L.pattern === "point") {
+      const m = g.createRadialGradient(face, h * 0.62, 14, face, h * 0.6, 110);
+      m.addColorStop(0, L.stripe);
+      m.addColorStop(0.55, L.stripe);
+      m.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = m;
+      g.fillRect(0, 0, w, h);
+      if (wv === "gloves" || wv === "mitts") {
+        g.fillStyle = WHITE;
+        g.beginPath();
+        g.ellipse(face, h, 60, 34, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+    // Menton et museau clairs
+    if (tabby || L.pattern === "solid" || L.pattern === "smoke") {
+      const chin = g.createRadialGradient(face, h * 0.8, 8, face, h * 0.8, 70);
+      chin.addColorStop(0, L.muzzle);
+      chin.addColorStop(0.7, L.muzzle);
+      chin.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = chin;
+      g.fillRect(0, 0, w, h);
+    }
+  });
+}
+
+function lookBodyTexture(L) {
+  return canvasTexture(512, 256, (g, w, h) => {
+    const r = rng(L.seed + 7);
+    const point = L.pattern === "point";
+    g.fillStyle = point ? L.light : L.base;
+    g.fillRect(0, 0, w, h);
+    if (point) {
+      // Corps clair qui fonce un peu vers l'arrière
+      const back = g.createRadialGradient(w * 0.5, h * 0.3, 10, w * 0.5, h * 0.3, 200);
+      back.addColorStop(0, mixColor(L.light, L.stripe, 0.35));
+      back.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = back;
+      g.fillRect(0, 0, w, h);
+    } else paintMarkings(g, w, h, L, "body", r);
+    const tabby = TABBY.includes(L.pattern);
+    if (tabby || point || L.pattern === "solid" || L.pattern === "smoke") {
+      const belly = g.createLinearGradient(0, h * 0.62, 0, h);
+      belly.addColorStop(0, "rgba(0,0,0,0)");
+      belly.addColorStop(0.4, L.chest);
+      belly.addColorStop(1, L.chest);
+      g.fillStyle = belly;
+      g.fillRect(0, 0, w, h);
+    }
+    // Blanc du corps
+    g.fillStyle = WHITE;
+    const blob = (x, y, rad) => {
+      g.beginPath();
+      for (let k = 0; k <= 14; k += 1) {
+        const a = (k / 14) * Math.PI * 2;
+        const rr = rad * (0.75 + r() * 0.4);
+        g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.75);
+      }
+      g.fill();
+    };
+    const wv = L.white;
+    if (wv === "locket") blob(6, h * 0.62, 26), blob(w - 6, h * 0.62, 26);
+    if (wv === "tuxedo") {
+      g.fillRect(0, h * 0.68, w, h);
+      g.fillRect(0, h * 0.35, 54, h);
+      g.fillRect(w - 54, h * 0.35, 54, h);
+    }
+    if (wv === "bicolor" || L.pattern === "calico") {
+      g.fillRect(0, h * 0.52, w, h);
+      g.fillRect(0, h * 0.2, 80, h);
+      g.fillRect(w - 80, h * 0.2, 80, h);
+    }
+    if (wv === "van" || wv === "harlequin" || wv === "all") {
+      g.fillRect(0, 0, w, h);
+      if (wv === "harlequin") {
+        g.fillStyle = L.base;
+        blob(w * 0.3, h * 0.25, 46);
+        blob(w * 0.62, h * 0.18, 40);
+        if (L.patch && L.pattern === "tortie") {
+          g.fillStyle = L.patch;
+          blob(w * 0.8, h * 0.3, 30);
+        }
+      }
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tenues
 // unlock : shop (boutique), level (récompense de niveau), chest (coffres),
@@ -756,44 +1066,65 @@ export function setBristle(toon, k) {
 // Construction des personnages
 // ---------------------------------------------------------------------------
 
-export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
+export function createToon(kind = "kichta", { skin = "caramel", look = null } = {}) {
   const pucci = kind === "pucci";
-  const s = pucci ? null : SKINS[skin] || SKINS.caramel;
+  const L = look && !pucci ? normalizeLook(look) : null;
+  const s = pucci ? null : L ? { base: L.base, light: L.chest, stripe: L.stripe, nose: L.nose, eye: L.eye } : SKINS[skin] || SKINS.caramel;
   const root = new THREE.Group();
   const rig = new THREE.Group();
   root.add(rig);
 
-  const headMat = candy(0xffffff, { map: pucci ? pucciHeadTexture() : kichtaHeadTexture(s) });
-  const bodyMat = candy(0xffffff, { map: pucci ? null : kichtaBodyTexture(s), color: pucci ? 0x1d1822 : 0xffffff });
+  const skinGloss = L && L.fur === "hairless" ? { roughness: 0.5, clearcoat: 0.5 } : {};
+  const headMat = candy(0xffffff, { map: pucci ? pucciHeadTexture() : L ? lookHeadTexture(L) : kichtaHeadTexture(s), ...skinGloss });
+  const bodyMat = candy(0xffffff, { map: pucci ? null : L ? lookBodyTexture(L) : kichtaBodyTexture(s), color: pucci ? 0x1d1822 : 0xffffff, ...skinGloss });
   const baseMat = candy(pucci ? 0x1d1822 : s.base);
   const lightMat = candy(pucci ? 0xfffaf3 : s.light);
   const stripeMat = candy(pucci ? 0x1d1822 : s.stripe);
   const pinkMat = candy(pucci ? 0xff9fb5 : s.nose);
   const innerEar = candy(pucci ? 0xffb3c4 : 0xffb6a0);
   const eyeMat = new THREE.MeshPhysicalMaterial({ map: eyeTexture(pucci ? "#d9d23a" : s.eye), roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0 });
+  const eyeMat2 = L && L.eye2 ? new THREE.MeshPhysicalMaterial({ map: eyeTexture(L.eye2), roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0 }) : eyeMat;
+  // Couleurs de chaque partie pour un chat personnalisé
+  const muzzleMat = L ? candy(L.muzzle) : lightMat;
+  const pawMat = L ? candy(L.paw) : lightMat;
+  const legMat = L ? candy(L.leg) : baseMat;
+  const earMat = L ? candy(L.ear) : pucci ? baseMat : stripeMat;
+  const ringMat = L ? (L.legRing ? candy(L.legRing) : null) : pucci ? null : stripeMat;
+  const long = L && L.fur === "long";
 
   // Corps : petit et rond
   const body = new THREE.Group();
   body.position.y = 0.5;
   rig.add(body);
-  const torso = mesh(GEO.sphere, bodyMat, [0.34, 0.31, 0.44]);
+  const torso = mesh(GEO.sphere, bodyMat, L && L.body === "slim" ? [0.3, 0.29, 0.44] : long ? [0.37, 0.33, 0.46] : [0.34, 0.31, 0.44]);
   torso.rotation.y = Math.PI / 2;
   body.add(torso);
   // Plastron clair
   body.add(mesh(GEO.sphere, lightMat, [0.25, 0.25, 0.2], [0, -0.04, 0.26]));
+  if (L && L.white === "locket") body.add(mesh(GEO.sphere, candy(WHITE), [0.12, 0.12, 0.08], [0, 0.05, 0.38]));
   if (pucci) body.add(mesh(GEO.sphere, lightMat, [0.3, 0.2, 0.36], [0, -0.13, 0]));
 
   // Tête : grosse, comme une figurine
   const head = new THREE.Group();
   head.position.set(0, 0.44, 0.3);
   body.add(head);
-  head.add(mesh(GEO.sphere, headMat, [0.43, 0.39, 0.4]));
+  const flat = L && L.face === "flat";
+  head.add(mesh(GEO.sphere, headMat, flat ? [0.46, 0.4, 0.37] : [0.43, 0.39, 0.4]));
   // Joues rebondies et museau clair
-  for (const side of [-1, 1]) head.add(mesh(GEO.sphere, lightMat, [0.12, 0.1, 0.1], [side * 0.09, -0.15, 0.31]));
-  head.add(mesh(GEO.sphere, lightMat, [0.1, 0.07, 0.08], [0, -0.23, 0.27]));
+  for (const side of [-1, 1]) head.add(mesh(GEO.sphere, muzzleMat, flat ? [0.13, 0.1, 0.08] : [0.12, 0.1, 0.1], [side * 0.09, -0.15, flat ? 0.29 : 0.31]));
+  head.add(mesh(GEO.sphere, muzzleMat, [0.1, 0.07, 0.08], [0, -0.23, flat ? 0.25 : 0.27]));
+  if (long) {
+    // Collerette de poils longs et joues touffues
+    const ruff = candy(L.white !== "none" || L.pattern === "point" ? L.chest : mixColor(L.base, L.chest, 0.5));
+    for (let i = 0; i < 9; i += 1) {
+      const a = (i / 8) * Math.PI - Math.PI / 2;
+      body.add(mesh(GEO.sphere, i % 2 ? ruff : bodyMat, [0.15, 0.15, 0.13], [Math.sin(a) * 0.28, 0.17 - Math.abs(Math.sin(a)) * 0.06, 0.24 + Math.cos(a) * 0.08]));
+    }
+    for (const side of [-1, 1]) head.add(mesh(GEO.sphere, headMat, [0.13, 0.13, 0.13], [side * 0.36, -0.12, 0.08]));
+  }
   if (pucci) head.add(mesh(GEO.small, stripeMat, [0.06, 0.04, 0.03], [0, -0.26, 0.31]));
   // Nez
-  const nose = mesh(GEO.sphere, pinkMat, [0.055, 0.04, 0.04], [0, -0.07, 0.39]);
+  const nose = mesh(GEO.sphere, pinkMat, [0.055, 0.04, 0.04], flat ? [0, -0.05, 0.37] : [0, -0.07, 0.39]);
   head.add(nose);
   if (pucci) head.add(mesh(GEO.small, stripeMat, [0.022, 0.018, 0.012], [-0.022, -0.065, 0.425]));
   // Yeux
@@ -801,8 +1132,9 @@ export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
   for (const side of [-1, 1]) {
     const eye = new THREE.Group();
     eye.position.set(side * 0.16, 0.04, 0.4);
-    eye.rotation.y = side * 0.28;
-    const ball = mesh(GEO.sphere, eyeMat, [0.075, pucci ? 0.11 : 0.14, 0.12], [0, 0, 0], false);
+    eye.rotation.y = side * (flat ? 0.2 : 0.28);
+    if (flat) eye.position.z = 0.37;
+    const ball = mesh(GEO.sphere, side > 0 ? eyeMat2 : eyeMat, [0.075, pucci ? 0.11 : flat ? 0.15 : 0.14, flat ? 0.13 : 0.12], [0, 0, 0], false);
     ball.rotation.y = -Math.PI / 2;
     eye.add(ball);
     head.add(eye);
@@ -815,17 +1147,28 @@ export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
     }
   }
   // Oreilles larges (comme sur les photos de Kichta)
+  const earKind = L ? L.ears : "normal";
   for (const side of [-1, 1]) {
     const ear = new THREE.Group();
     ear.position.set(side * 0.25, 0.3, -0.02);
     ear.rotation.set(-0.1, side * -0.35, side * -0.38);
-    ear.add(mesh(GEO.cone, pucci ? baseMat : stripeMat, [0.16, 0.3, 0.07], [0, 0.1, 0]));
+    ear.add(mesh(GEO.cone, earMat, [0.16, 0.3, 0.07], [0, 0.1, 0]));
     ear.add(mesh(GEO.cone, innerEar, [0.1, 0.2, 0.03], [0, 0.07, 0.04], false));
+    if (earKind === "big") ear.scale.set(1.3, 1.35, 1.2);
+    if (earKind === "small") ear.scale.set(0.85, 0.8, 1);
+    if (earKind === "fold") {
+      // Oreilles pliées vers l'avant (Scottish Fold)
+      ear.position.set(side * 0.2, 0.31, 0.06);
+      ear.rotation.set(1.05, side * -0.15, side * -0.45);
+      ear.scale.set(1.15, 0.72, 1.2);
+    }
+    if (earKind === "curl") ear.rotation.x = -0.75;
+    if (L && L.tufts) ear.add(mesh(GEO.cone, candy(L.stripe), [0.05, 0.08, 0.03], [0, 0.27, 0], false));
     head.add(ear);
   }
   // Moustaches
   const whiskerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  for (const side of [-1, 1]) {
+  for (const side of L && L.fur === "hairless" ? [] : [-1, 1]) {
     for (const tilt of [-0.12, 0.08]) {
       const w = mesh(GEO.capsule, whiskerMat, [0.006, 0.14, 0.006], [side * 0.26, -0.13, 0.3], false);
       w.rotation.z = Math.PI / 2 + side * tilt;
@@ -857,16 +1200,30 @@ export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
   for (const [x, z, front] of [[-0.17, 0.24, true], [0.17, 0.24, true], [-0.17, -0.22, false], [0.17, -0.22, false]]) {
     const leg = new THREE.Group();
     leg.position.set(x, 0.36, z);
-    leg.add(mesh(GEO.capsule, pucci ? baseMat : baseMat, [0.09, 0.14, 0.09], [0, -0.14, 0]));
-    leg.add(mesh(GEO.sphere, lightMat, [0.11, 0.08, 0.13], [0, -0.3, 0.03]));
-    if (!pucci) leg.add(mesh(GEO.torus, stripeMat, [0.09, 0.09, 0.09], [0, -0.12, 0]).rotateX(Math.PI / 2));
+    leg.add(mesh(GEO.capsule, legMat, long ? [0.1, 0.14, 0.1] : [0.09, 0.14, 0.09], [0, -0.14, 0]));
+    leg.add(mesh(GEO.sphere, pawMat, [0.11, 0.08, 0.13], [0, -0.3, 0.03]));
+    if (ringMat) leg.add(mesh(GEO.torus, ringMat, [0.09, 0.09, 0.09], [0, -0.12, 0]).rotateX(Math.PI / 2));
     leg.userData = { front, side: Math.sign(x) };
     rig.add(leg);
     legs.push(leg);
   }
 
-  // Queue annelée, au bout noir
+  // Queue annelée, au bout noir (ou selon la robe du chat personnalisé)
   const tail = [];
+  const tailMats = [];
+  if (L) {
+    const tabby = TABBY.includes(L.pattern) || L.pattern === "torbie";
+    const tailBase = L.pattern === "point" ? candy(L.stripe) : L.white === "all" ? candy(WHITE) : baseMat;
+    const tailPatch = candy(L.pattern === "calico" || L.pattern === "tortie" || L.pattern === "torbie" ? L.patch : L.stripe);
+    for (let i = 0; i < 9; i += 1) {
+      let m = tailBase;
+      if (tabby) m = i >= 7 || i % 2 ? stripeMat : baseMat;
+      else if (L.pattern === "calico" || L.pattern === "tortie") m = (i * 7 + L.seed) % 3 === 0 ? tailPatch : tailBase;
+      else if (L.pattern === "smoke" && i < 2) m = candy(L.light);
+      if (L.white === "van" && !tabby && L.pattern !== "calico") m = baseMat;
+      tailMats.push(m);
+    }
+  }
   let parent = rig;
   const tailBase = new THREE.Group();
   tailBase.position.set(0, 0.6, -0.4);
@@ -878,8 +1235,8 @@ export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
       seg.position.y = 0.1;
       parent.add(seg);
     }
-    const r = (pucci ? 0.09 : 0.08) - i * 0.004;
-    const mat = pucci ? baseMat : i >= 7 ? stripeMat : i % 2 ? stripeMat : baseMat;
+    const r = ((pucci ? 0.09 : 0.08) - i * 0.004) * (long ? 1.7 : L && L.fur === "hairless" ? 0.7 : 1);
+    const mat = pucci ? baseMat : L ? tailMats[i] : i >= 7 ? stripeMat : i % 2 ? stripeMat : baseMat;
     seg.add(mesh(GEO.sphere, mat, [r, 0.08, r], [0, 0.05, 0]));
     tail.push(seg);
     parent = seg;
@@ -895,7 +1252,8 @@ export function createToon(kind = "kichta", { skin = "caramel" } = {}) {
   const bristles = buildBristles(pucci ? baseMat : stripeMat);
   rig.add(bristles);
 
-  root.userData = { rig, body, head, legs, tail, eyes, slots, kind, bristles, bristle: 0, flash: [bodyMat, headMat, baseMat], outfit: {} };
+  if (L && L.body === "big") body.scale.setScalar(1.07);
+  root.userData = { rig, body, head, legs, tail, eyes, slots, kind, bristles, bristle: 0, flash: [bodyMat, headMat, baseMat], outfit: {}, look: L };
   return root;
 }
 

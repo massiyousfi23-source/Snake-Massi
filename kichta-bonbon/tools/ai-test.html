@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test reconnaissance</title>
+<body style="font:13px system-ui">
+<script type="module">
+  import { analyse } from "../catmatch.js?v=b6";
+  const dir = new URLSearchParams(location.search).get("dir") || "photos";
+  const files = await (await fetch(`/_aif/${dir}/list.json`)).json();
+  const text = await (await fetch("../ai/text.json")).json();
+  const out = [];
+  for (const f of files) {
+    const img = new Image();
+    img.src = `/_aif/${dir}/` + f;
+    try { await img.decode(); } catch { continue; }
+    const r = await analyse(img);
+    // Similarités brutes (pour calibrer les biais du modèle)
+    const sims = Object.fromEntries(Object.entries(text.groups).map(([k, g]) => [k, g.emb.map((t) => t.reduce((s, x, i) => s + x * r.emb[i], 0))]));
+    const top = (g) => Object.entries(r.probs[g]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} ${Math.round(v * 100)}`).join(", ");
+    out.push({ f, dists: Object.fromEntries(r.ranked.map((x) => [x.cat.id, Math.round(x.dist * 100) / 100])), cat: Math.round(r.probs.iscat.cat * 100), top: r.ranked.slice(0, 3).map((x) => x.cat.id), match: r.ranked.slice(0, 3).map((x) => x.match), sims,
+      desc: `motif: ${top("pattern")} | couleur: ${top("color")} | poil: ${top("fur")} | race: ${top("breed")} | oreilles: ${top("ears")} | face: ${top("face")}` });
+  }
+  window.result = out;
+  window.ready = true;
+</script>

@@ -12,7 +12,7 @@ import {
   VerticalTiltShiftShader,
   RoomEnvironment,
 } from "../vendor/three.addons.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b5";
+import { candy, canvasTexture } from "./toons.js?v=b6";
 
 export const LANE = 2.3;
 export const BIOMES = [

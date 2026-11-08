@@ -2,7 +2,7 @@
 // textes à l'écran, petites aides d'animation.
 import * as THREE from "../../vendor/three.module.min.js";
 import { EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass, HorizontalTiltShiftShader, VerticalTiltShiftShader, RoomEnvironment } from "../../vendor/three.addons.min.js";
-import { canvasTexture } from "../toons.js?v=b5";
+import { canvasTexture } from "../toons.js?v=b6";
 
 export const W = 1280;
 export const H = 720;
