@@ -1,0 +1,45 @@
+# Prépare les fichiers de l'IA « Mon chat » (modèle, moteur, photos de test) et les met en téléchargement.
+name: Préparation IA Mon chat
+on:
+  push:
+    branches: [ai-prep]
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Moteurs (transformers.js et onnxruntime-web)
+        run: |
+          mkdir -p out/lib && cd out/lib
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund @huggingface/transformers@3 onnxruntime-web@1.20.1
+          mkdir -p ../transformers ../ort
+          cp -r node_modules/@huggingface/transformers/dist/* ../transformers/
+          cp node_modules/onnxruntime-web/dist/ort.wasm.min.mjs node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs ../ort/ || ls node_modules/onnxruntime-web/dist
+          ls -la ../ort ../transformers | head -40
+          cat node_modules/onnxruntime-web/package.json | grep '"version"'
+          cd .. && rm -rf lib
+      - name: Modèles
+        run: |
+          pip install -q huggingface_hub
+          python - <<'P'
+          from huggingface_hub import snapshot_download, list_repo_files
+          for repo in ["Xenova/mobileclip_s0", "Xenova/clip-vit-base-patch32"]:
+              try:
+                  files = list_repo_files(repo); print(repo, files)
+                  allow = [f for f in files if f.endswith(".json") or f.endswith(".txt") or f in ("onnx/vision_model_quantized.onnx", "onnx/text_model_quantized.onnx", "onnx/vision_model_uint8.onnx", "onnx/vision_model_fp16.onnx", "onnx/vision_model.onnx")]
+                  snapshot_download(repo, local_dir="out/models/" + repo, allow_patterns=allow)
+              except Exception as e:
+                  print("échec", repo, e)
+          P
+          du -ah out/models | sort -h | tail -30
+      - name: Photos de test
+        run: python3 tools-ai/fetch_photos.py out/photos && ls out/photos | wc -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ia-mon-chat
+          path: out
+          retention-days: 5
