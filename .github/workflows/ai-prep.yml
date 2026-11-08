@@ -17,7 +17,7 @@ jobs:
         run: |
           mkdir -p out/lib && cd out/lib
           npm init -y >/dev/null
-          npm install --no-audit --no-fund @huggingface/transformers@3
+          npm install --no-audit --no-fund --ignore-scripts @huggingface/transformers@3
           mkdir -p ../transformers ../ort
           cp -r node_modules/@huggingface/transformers/dist/* ../transformers/
           ORT=node_modules/onnxruntime-web; grep '"version"' $ORT/package.json; cp $ORT/dist/ort.wasm.min.mjs $ORT/dist/ort-wasm-simd-threaded.wasm $ORT/dist/ort-wasm-simd-threaded.mjs $ORT/dist/ort.webgpu.min.mjs $ORT/dist/ort-wasm-simd-threaded.jsep.* ../ort/ || ls $ORT/dist
