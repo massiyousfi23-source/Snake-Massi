@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Empreintes du texte (Mon chat)</title>
+<script type="module">
+  // Calcule une fois pour toutes les empreintes des descriptions de traits (GROUPS).
+  // Les fichiers du modèle complet sont dans /_aif (non livrés avec le jeu).
+  import { env, AutoTokenizer, CLIPTextModelWithProjection } from "/_aif/transformers/transformers.min.js";
+  import { GROUPS } from "./cat-prompts.js?v=1";
+  env.allowRemoteModels = false;
+  env.allowLocalModels = true;
+  env.localModelPath = "/_aif/models/";
+  env.backends.onnx.wasm.wasmPaths = "/_aif/transformers/";
+  env.backends.onnx.wasm.numThreads = 1;
+  const id = "Xenova/mobileclip_s0";
+  const tokenizer = await AutoTokenizer.from_pretrained(id);
+  const model = await CLIPTextModelWithProjection.from_pretrained(id, { dtype: "q8" });
+  const norm = (v) => { const n = Math.hypot(...v) || 1; return v.map((x) => x / n); };
+  const groups = {};
+  for (const [name, values] of Object.entries(GROUPS)) {
+    const labels = Object.keys(values);
+    const emb = [];
+    for (const l of labels) {
+      const inputs = tokenizer(values[l], { padding: "max_length", truncation: true });
+      const { text_embeds } = await model(inputs);
+      const dim = text_embeds.dims[1];
+      const sum = new Array(dim).fill(0);
+      for (let r = 0; r < values[l].length; r += 1) {
+        const row = norm(Array.from(text_embeds.data.slice(r * dim, (r + 1) * dim)));
+        row.forEach((x, i) => (sum[i] += x));
+      }
+      emb.push(norm(sum).map((x) => Math.round(x * 1e4) / 1e4));
+    }
+    groups[name] = { labels, emb };
+  }
+  window.result = groups;
+  window.ready = true;
+</script>
