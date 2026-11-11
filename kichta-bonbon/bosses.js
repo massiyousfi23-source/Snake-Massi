@@ -3,7 +3,7 @@
 // - Pikou, le hérisson qui lance ses piques (boss final).
 // Les modèles regardent vers +Z.
 import * as THREE from "../vendor/three.module.min.js";
-import { candy, canvasTexture } from "./toons.js?v=b7";
+import { candy, canvasTexture } from "./toons.js?v=b8";
 
 const SPHERE = new THREE.SphereGeometry(1, 32, 22);
 const SMALL = new THREE.SphereGeometry(1, 16, 12);
@@ -567,5 +567,68 @@ export function createTrashBag() {
   const bone = part(CAPSULE, candy(0xfff4e0), [0.02, 0.25, 0.02], [0.25, 0.8, 0.2], false);
   bone.rotation.z = -0.8;
   g.add(bone);
+  return g;
+}
+
+// Pelote de laine que Pucci fait rouler (phase 1)
+let yarnTex = null;
+export function createYarn() {
+  yarnTex =
+    yarnTex ||
+    canvasTexture(128, 64, (c, w, h) => {
+      c.fillStyle = "#ff7fb5";
+      c.fillRect(0, 0, w, h);
+      c.strokeStyle = "#ffc2dc";
+      c.lineWidth = 3;
+      for (let i = -h; i < w; i += 9) {
+        c.beginPath();
+        c.moveTo(i, 0);
+        c.lineTo(i + h, h);
+        c.stroke();
+      }
+      c.strokeStyle = "#e0559a";
+      c.lineWidth = 2;
+      for (let i = 0; i < w + h; i += 13) {
+        c.beginPath();
+        c.moveTo(i, 0);
+        c.lineTo(i - h, h);
+        c.stroke();
+      }
+    });
+  const g = new THREE.Group();
+  const roll = new THREE.Group();
+  roll.position.y = 0.5;
+  roll.add(part(SPHERE, candy(0xffffff, { map: yarnTex, roughness: 0.75, clearcoat: 0.1 }), 0.5, [0, 0, 0]));
+  g.add(roll);
+  // Le bout de fil qui traîne derrière
+  const tail = part(CAPSULE, candy(0xff7fb5), [0.035, 0.35, 0.035], [0, 0.05, -0.55], false);
+  tail.rotation.x = Math.PI / 2;
+  g.add(tail);
+  g.userData.roll = roll;
+  return g;
+}
+
+// Robot aspirateur sur lequel Pucci fonce (phase 3)
+export function createVacuumRide() {
+  const g = new THREE.Group();
+  g.add(part(new THREE.CylinderGeometry(1, 1, 1, 32), candy(0x2a2a36, { metalness: 0.3 }), [1.25, 0.42, 1.25], [0, 0.21, 0]));
+  g.add(part(new THREE.CylinderGeometry(1, 1, 1, 32), candy(0x5ad1ff, { emissive: 0x5ad1ff, emissiveIntensity: 0.8 }), [0.45, 0.06, 0.45], [0, 0.44, -0.55], false));
+  const light = part(new THREE.BoxGeometry(1, 1, 1), candy(0xff3d4d, { emissive: 0xff3d4d, emissiveIntensity: 1.2 }), [0.8, 0.1, 0.12], [0, 0.26, 1.2], false);
+  g.add(light);
+  // Brosses latérales qui tournent
+  const brushes = [-0.85, 0.85].map((x) => {
+    const b = new THREE.Group();
+    b.position.set(x, 0.04, 0.85);
+    for (let i = 0; i < 3; i += 1) {
+      const s = part(CAPSULE, candy(0xffd23f), [0.03, 0.3, 0.03], [0, 0, 0], false);
+      s.rotation.set(Math.PI / 2, 0, (i * Math.PI * 2) / 3);
+      s.position.set(Math.cos((i * Math.PI * 2) / 3) * 0.2, 0, Math.sin((i * Math.PI * 2) / 3) * 0.2);
+      b.add(s);
+    }
+    g.add(b);
+    return b;
+  });
+  g.userData.light = light;
+  g.userData.brushes = brushes;
   return g;
 }

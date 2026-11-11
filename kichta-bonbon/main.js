@@ -3,12 +3,14 @@
 // multiplicateur), les blocs « ? » et l'ambiance de Mario, et un boss qui
 // revient régulièrement.
 import * as THREE from "../vendor/three.module.min.js";
-import { createWorld, LANE, BIOMES } from "./world.js?v=b7";
-import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b7";
-import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag } from "./bosses.js?v=b7";
-import { installThemes, themeIndex } from "./themes.js?v=b7";
-import * as Sfx from "./sfx.js?v=b7";
-import { CATS } from "./cats.js?v=b7";
+import { createWorld, LANE, BIOMES } from "./world.js?v=b8";
+import { createToon, dressToon, animateToon, flashToon, addInjuries, SKINS, OUTFITS, RARITY, SLOT_NAMES, buildItem, candy } from "./toons.js?v=b8";
+import { createReplay } from "./replay.js?v=b8";
+import { isNoel, NOEL_GOALS, NOEL_DECOR, createFlake, createSnow } from "./noel.js?v=b8";
+import { createDog, animateDog, createHedgehog, animateHedgehog, createBone, createSpike, createSkate, createCaterpillar, animateCaterpillar, createFly, animateFly, createApple, createTrashBag, createYarn, createVacuumRide } from "./bosses.js?v=b8";
+import { installThemes, themeIndex } from "./themes.js?v=b8";
+import * as Sfx from "./sfx.js?v=b8";
+import { CATS } from "./cats.js?v=b8";
 
 const $ = (s) => document.querySelector(s);
 const canvas = $("#game");
@@ -606,7 +608,12 @@ chacha.scale.setScalar(1.6);
 const moumouche = createFly();
 moumouche.scale.setScalar(1.7);
 const boss = new THREE.Group();
-boss.add(cloud, pucci, pucciHurt, dog, hog, chacha, moumouche);
+// Robot aspirateur de Pucci (phase 3)
+const ride = createVacuumRide();
+ride.scale.setScalar(1.15);
+ride.position.y = -0.55;
+ride.visible = false;
+boss.add(cloud, pucci, pucciHurt, dog, hog, chacha, moumouche, ride);
 boss.visible = false;
 world.scene.add(boss);
 const BOSS_MODEL = { pucci, pucci2: pucciHurt, dog, hedgehog: hog, caterpillar: chacha, fly: moumouche };
@@ -615,7 +622,64 @@ world.OBSTACLES.bone = createBone;
 world.OBSTACLES.spike = createSpike;
 world.OBSTACLES.apple = createApple;
 world.OBSTACLES.bag = createTrashBag;
+world.OBSTACLES.yarn = createYarn;
 installThemes(world);
+world.OBSTACLES.book = world.OBSTACLES.books;
+
+// --- Replay du coup final à partager -------------------------------------------------------------
+const replay = createReplay(world.renderer.domElement, Sfx.recordStream);
+const GAME_URL = "https://massiyousfi23-source.github.io/Snake-Massi/kichta-bonbon/";
+function showShare(on) {
+  const ok = on && G.hasReplay && !!replay.clip;
+  $("#shareReplay").classList.toggle("hidden", !(ok && G.mode === "cinema"));
+  $("#shareOver").classList.toggle("hidden", !(ok && G.mode === "over"));
+}
+async function shareReplay() {
+  const who = G.replayBoss || "un boss";
+  const ok = await replay.share(`${save.hero.name || "Kichta"} a mis K.-O. ${who} dans Kichta Bonbon ! 🐱🍬 ${GAME_URL}`);
+  if (ok) toast("🎬 Replay prêt à partager !", "power");
+}
+
+// --- Événement de Noël ----------------------------------------------------------------------------
+const NOEL = isNoel();
+const snow = NOEL ? createSnow(world.scene) : null;
+if (!save.noel) save.noel = { flakes: 0, got: [] };
+if (NOEL) {
+  world.OBSTACLES.flake = createFlake;
+  Object.assign(world.DECOR, NOEL_DECOR);
+  BIOMES.forEach((b) => {
+    if (Array.isArray(b.decor) && !b.decor.includes("xmastree")) b.decor.push("xmastree", "gifts", "xmastree");
+  });
+  Sfx.setNoel(true);
+}
+function addFlake(z) {
+  const lane = pick([-1, 0, 1]);
+  const high = Math.random() < 0.25;
+  addObject("flake", lane, z + 4, { y: high ? 3.4 : 1.1 });
+}
+function nextNoelGoal() {
+  return NOEL_GOALS.find((g) => !save.noel.got.includes(g.id));
+}
+function collectFlake(o) {
+  save.noel.flakes += 1;
+  G.runFlakes = (G.runFlakes || 0) + 1;
+  G.score += 20 * multiplier();
+  Sfx.play("bell", { volume: 0.5, rate: 0.95 + Math.random() * 0.15 });
+  world.burst(o.mesh.position.x, o.mesh.position.y, o.mesh.position.z, 0xbfeaff, 14, 3.5);
+  const goal = nextNoelGoal();
+  if (goal && save.noel.flakes >= goal.flakes) {
+    save.noel.got.push(goal.id);
+    const had = owns(goal.slot, goal.id);
+    if (had) save.pending.push({ coins: 600, source: "noel" });
+    else grantItem(goal.slot, goal.id, "noel");
+    const item = OUTFITS[goal.slot][goal.id];
+    banner("🎄 CADEAU DE NOËL !", had ? "600 croquettes · à ouvrir dans 🎁" : `${item.icon} ${item.name} · à ouvrir dans 🎁`);
+    Sfx.play("carol", { volume: 0.7, vary: 0 });
+    world.confetti(P.x, 2, P.z - 3, 80);
+    buzz([50, 40, 50]);
+    persist();
+  } else if (goal && save.noel.flakes % 10 === 0) toast(`❄️ ${save.noel.flakes}/${goal.flakes} flocons`, "power");
+}
 
 // Patins de Kichta (arme secrète du niveau 4)
 const skates = [];
@@ -650,7 +714,13 @@ function startBoss() {
     defeated: false,
     hurt: 0,
     dodged: 0,
+    maxHp: (LEVELS.find((l) => l.boss === kind) || level).hp,
+    phase: 1,
+    pauseT: 0,
+    charge: null,
   };
+  G.boss.phased = kind === "pucci" || kind === "pucci2";
+  ride.visible = false;
   Object.entries(BOSS_MODEL).forEach(([k, m]) => (m.visible = k === kind));
   cloud.visible = kind === "pucci" || kind === "pucci2";
   boss.visible = true;
@@ -661,7 +731,8 @@ function startBoss() {
   $("#bossBar div").innerHTML = "<i></i>".repeat(G.boss.hp);
   $("#bossBar").classList.remove("hidden");
   updateBossBar();
-  banner(G.boss.level.title, G.boss.level.hint);
+  if (G.boss.phased) banner(G.boss.level.title, PHASES[1].hint);
+  else banner(G.boss.level.title, G.boss.level.hint);
   // Face à face : Kichta crache, poils hérissés
   G.hissT = 2.8;
   Sfx.play("hiss", { volume: 0.9, rate: 1.05 });
@@ -698,7 +769,39 @@ function hurtBoss(target) {
   else if (b.kind === "caterpillar") Sfx.play("squeak", { volume: 0.8, rate: 1.5 });
   else if (b.kind === "fly") Sfx.play("buzz", { volume: 0.8, rate: 1.3 });
   else Sfx.play("meow", { volume: 0.7, rate: 1.1 + Math.random() * 0.2 });
+  buzz(40);
   if (b.hp <= 0) endBoss(true);
+  else if (b.phased) {
+    const phase = pucciPhase(b);
+    if (phase !== b.phase) nextPhase(b, phase);
+  }
+}
+// ---------------------------------------------------------------------------
+// Pucci en 3 phases : elle joue (pelotes), s'énerve (livres et bombes),
+// puis fonce sur Kichta à dos de robot aspirateur.
+// ---------------------------------------------------------------------------
+const PHASES = {
+  1: { title: "PUCCI JOUE…", hint: "Saute ou esquive ses pelotes 🧶, attrape les poissons 🐟" },
+  2: { title: "PUCCI S'ÉNERVE !", hint: "Attention aux livres qui tombent 📚 !" },
+  3: { title: "PUCCI FONCE !", hint: "Elle fonce en aspirateur : change de couloir !" },
+};
+function pucciPhase(b) {
+  const k = b.hp / b.maxHp;
+  return k > 2 / 3 ? 1 : k > 1 / 3 ? 2 : 3;
+}
+function nextPhase(b, phase) {
+  b.phase = phase;
+  b.pauseT = 2.2;
+  b.charge = null;
+  b.throwT = Math.max(b.throwT, 2.4);
+  banner(PHASES[phase].title, `Phase ${phase}/3 · ${PHASES[phase].hint}`);
+  Sfx.play("hiss", { volume: 0.9, rate: phase === 3 ? 0.8 : 0.95 });
+  Sfx.play("meow", { volume: 0.8, rate: 0.75, delay: 0.6 });
+  if (phase === 3) Sfx.play("rattle", { volume: 0.7, delay: 1.2 });
+  G.hissT = 1.6;
+  world.shake(0.5);
+  flash("#ff7fb5");
+  buzz([80, 60, 140]);
 }
 function endBoss(defeated) {
   const b = G.boss;
@@ -753,13 +856,19 @@ function updateBoss(dt) {
     else animateHedgehog(model, G.t, b.defeated ? "hurt" : "run");
     if (b.leaving > 3) {
       boss.visible = false;
+      ride.visible = false;
       G.boss = null;
     }
     return;
   }
   // Le boss se place devant un couloir et vise Kichta
-  if (Math.random() < dt * 0.6) b.targetX = laneX(pick([-1, 0, 1]));
-  b.x += (b.targetX - b.x) * Math.min(1, dt * 2.5);
+  if (!b.charge && Math.random() < dt * 0.6) b.targetX = laneX(pick([-1, 0, 1]));
+  b.x += (b.targetX - b.x) * Math.min(1, dt * (b.charge ? 6 : 2.5));
+  b.pauseT = Math.max(0, b.pauseT - dt);
+  if (b.phased && b.phase === 3) {
+    updatePucciRide(b, dt, model);
+    return;
+  }
   if (flying) {
     const enterY = Math.max(3.2, 9 - b.t * 4);
     boss.position.set(b.x, enterY + Math.sin(G.t * 2) * 0.25, P.z - 15);
@@ -769,8 +878,10 @@ function updateBoss(dt) {
       boss.position.y -= 1.4;
       model.userData.flash.forEach((m) => m.emissive && m.emissive.setRGB(b.hurt * 2, b.hurt * 0.4, b.hurt * 0.4));
     } else {
-      animateToon(model, G.t, G.hissT > 0.3 ? "hiss" : b.throwT < 0.3 ? "throw" : "idle");
-      flashToon(model, b.hurt > 0 ? b.hurt * 3 : 0);
+      animateToon(model, G.t, G.hissT > 0.3 || b.pauseT > 0 ? "hiss" : b.throwT < 0.3 ? "throw" : "idle");
+      // En colère (phase 2), elle rougit par moments
+      const anger = b.phased && b.phase === 2 ? Math.max(0, Math.sin(G.t * 6)) * 0.35 : 0;
+      flashToon(model, b.hurt > 0 ? b.hurt * 3 : anger);
     }
   } else {
     // Rocky et Pikou courent à reculons devant Kichta
@@ -783,7 +894,7 @@ function updateBoss(dt) {
     model.userData.flash.forEach((m) => m.emissive && m.emissive.setRGB(b.hurt * 2, b.hurt * 0.4, b.hurt * 0.4));
   }
   b.barkT = Math.max(0, (b.barkT || 0) - dt);
-  if (b.t > 1.5) {
+  if (b.t > 1.5 && b.pauseT <= 0) {
     b.throwT -= dt;
     if (b.throwT <= 0) {
       b.throwT = b.rate * (0.8 + Math.random() * 0.5);
@@ -795,7 +906,15 @@ function updateBoss(dt) {
         if (Math.random() < 0.35) dropBag(pick([-1, 0, 1].filter((l) => l !== target)));
       }
       else if (b.kind === "hedgehog") throwSpikes();
-      else {
+      else if (b.phased && b.phase === 1) {
+        rollYarn(target);
+        if (b.kind === "pucci2" && Math.random() < 0.4) rollYarn(pick([-1, 0, 1].filter((l) => l !== target)));
+      } else if (b.phased && b.phase === 2) {
+        dropBook(target);
+        const other = pick([-1, 0, 1].filter((l) => l !== target));
+        if (Math.random() < 0.5) dropBook(other);
+        else throwBomb(other);
+      } else {
         throwBomb(target);
         // Pucci, furieuse, lance parfois deux bombes
         if (b.kind === "pucci2" && Math.random() < 0.45) throwBomb(pick([-1, 0, 1].filter((l) => l !== target)));
@@ -811,7 +930,91 @@ function updateBoss(dt) {
       }
     }
   }
-  if (b.t > (b.kind === "hedgehog" ? 50 : 40)) endBoss(false);
+  if (b.t > (b.kind === "hedgehog" ? 50 : b.phased ? 60 : 40)) endBoss(false);
+}
+/** Phase 3 : Pucci descend de son nuage sur l'aspirateur, puis charge dans un couloir. */
+function updatePucciRide(b, dt, model) {
+  ride.visible = true;
+  cloud.visible = false;
+  const c = b.charge;
+  // Avance devant Kichta, recule pendant la charge
+  let off = -15;
+  if (c) {
+    c.t += dt;
+    if (c.t < c.warnT) off = -15 - Math.sin(Math.min(1, c.t / 0.3) * Math.PI / 2) * 2; // elle prend de l'élan
+    else if (c.t < c.warnT + 1.0) {
+      const k = (c.t - c.warnT) / 1.0;
+      off = -17 + k * k * 27; // fonce jusque derrière Kichta
+      if (!c.passed && Math.abs(P.x - b.x) < 1.15 && Math.abs(boss.position.z - P.z) < 0.9 && P.y < 1.6) {
+        c.passed = true;
+        crash(null);
+      }
+      if (!c.passed && boss.position.z > P.z + 0.5) {
+        c.passed = true;
+        statWithMissions("near");
+        G.score += 100 * multiplier();
+        toast(`Esquivée ! +${100 * multiplier()}`, "near");
+      }
+    } else {
+      const k = Math.min(1, (c.t - c.warnT - 1.0) / 1.4);
+      off = -40 + k * 25; // réapparaît au loin (derrière la caméra, on ne voit pas le saut)
+      if (k >= 1) {
+        b.charge = null;
+        b.throwT = b.rate * (1.6 + Math.random() * 0.6);
+      }
+    }
+    if (c.warn) {
+      c.warn.position.set(b.x, 0, P.z - 8);
+      if (c.t > c.warnT + 0.4) world.release(c.warn), (c.warn = null);
+    }
+  }
+  const y = boss.position.y + (0.55 - boss.position.y) * Math.min(1, dt * 3);
+  boss.position.set(b.x, y, P.z + off);
+  boss.rotation.set(0, 0, c && c.t > c.warnT && c.t < c.warnT + 1 ? Math.sin(G.t * 30) * 0.04 : Math.sin(G.t * 3) * 0.03);
+  // Brosses qui tournent, phare qui clignote
+  ride.userData.brushes.forEach((br, i) => (br.rotation.y += dt * (c ? 30 : 12) * (i ? 1 : -1)));
+  ride.userData.light.material.emissiveIntensity = 0.6 + Math.max(0, Math.sin(G.t * (c ? 25 : 6))) * 1.4;
+  animateToon(model, G.t, b.pauseT > 0 || (c && c.t < c.warnT) ? "hiss" : c ? "win" : "idle");
+  flashToon(model, b.hurt > 0 ? b.hurt * 3 : 0);
+  if (b.pauseT > 0) return;
+  // Charge suivante, toujours dans le couloir de Kichta
+  if (!c) {
+    b.throwT -= dt;
+    if (b.throwT <= 0) {
+      b.targetX = laneX(P.lane);
+      const warn = world.acquire("obs-warn", world.OBSTACLES.warn);
+      warn.position.set(b.targetX, 0, P.z - 8);
+      b.charge = { t: 0, warnT: b.kind === "pucci2" ? 0.85 : 1.05, warn, passed: false };
+      Sfx.play("rattle", { volume: 0.8 });
+      Sfx.play("hiss", { volume: 0.6, rate: 1.2, delay: 0.3 });
+    }
+  }
+  // Les poissons-fusées continuent d'arriver
+  b.fishT -= dt;
+  if (b.fishT <= 0) {
+    b.fishT = 2.4 + Math.random() * 1.0;
+    const fish = addPower("fish", pick([-1, 0, 1]), P.z - 55, 0.9);
+    fish.fish = true;
+  }
+}
+function rollYarn(lane) {
+  // Pucci laisse tomber une pelote qui roule vers Kichta
+  const yarn = addObject("yarn", lane, boss.position.z + 1);
+  yarn.vz = 10;
+  yarn.drop = 3.2;
+  yarn.mesh.position.y = 3.2;
+  Sfx.play("meow", { volume: 0.35, rate: 1.5 });
+}
+function dropBook(lane) {
+  // Une pile de livres tombe du ciel sur la piste
+  const landZ = P.z - G.speed * 0.85 - 9;
+  const warn = world.acquire("obs-warn", world.OBSTACLES.warn);
+  warn.position.set(laneX(lane), 0, landZ);
+  const book = addObject("book", lane, landZ);
+  book.flying = 0.85;
+  book.from = boss.position.clone().add(new THREE.Vector3(0, 1.4, 0));
+  book.warn = warn;
+  book.mesh.position.copy(book.from);
 }
 function throwBomb(lane) {
   // Lancée par-dessus sa tête : la bombe atterrit devant Kichta
@@ -900,6 +1103,11 @@ function startFinisher(rocket) {
   rocket.scale0 = rocket.mesh.scale.x;
   rocket.mesh.scale.setScalar(rocket.scale0 * 0.6);
   G.fin = { t: 0, rocket };
+  if (replay.supported && G.boss) {
+    G.replayBoss = G.boss.level.name;
+    G.hasReplay = true;
+    replay.start(`COUP FINAL SUR ${G.boss.level.short} !`);
+  }
   P.flip = 0;
   world.muteBursts(true);
   world.softGlare(true);
@@ -1006,6 +1214,8 @@ function updateRockets(dt) {
       if (r.final) {
         // Impact du coup final
         Sfx.play("finalHit", { volume: 1, vary: 0 });
+        buzz([0, 40, 30, 300]);
+        setTimeout(() => replay.stop(), 1300);
         flash("#ffffff");
         world.shake(0.9);
         world.burst(target.x, target.y, target.z, 0xffd23f, 80, 12);
@@ -1052,7 +1262,7 @@ function startRun() {
   // En campagne, la course se déroule dans le monde du boss du niveau
   const theme = save.stage <= LEVELS.length ? themeIndex(currentLevel().theme) : -1;
   G.worldOrder = theme >= 0 ? [theme] : worldRotation();
-  Object.assign(G, { mode: "run", dist: 0, score: 0, coins: 0, speed: 14, nextRowZ: -35, nextPowerAt: 200 + Math.random() * 150, nextBossAt: 1300, biome: 0, revives: 0, stats: {}, boss: null, coinStreak: 0, worldSlides: 0, secretGiven: false, hissT: 0 });
+  Object.assign(G, { mode: "run", dist: 0, score: 0, coins: 0, speed: 14, nextRowZ: -35, nextPowerAt: 200 + Math.random() * 150, nextBossAt: 1300, biome: 0, revives: 0, stats: {}, boss: null, coinStreak: 0, worldSlides: 0, secretGiven: false, hissT: 0, hasReplay: false, runFlakes: 0 });
   Object.assign(P, { lane: 0, x: 0, y: 0, vy: 0, z: 0, grounded: true, slide: 0, invuln: 0, squash: 0, fromLane: 0, lastLaneT: -9, airJumps: 0, flip: 0 });
   Object.keys(POWER).forEach((k) => (POWER[k] = 0));
   if (save.startShield > 0) {
@@ -1082,11 +1292,13 @@ function crash(obj) {
     world.burst(P.x, 1, P.z, 0x7fe3ff, 40, 8);
     world.shake(0.4);
     Sfx.play("break", { volume: 0.8 });
+    buzz(60);
     toast("Bouclier éclaté !", "power");
     return;
   }
   G.mode = "dying";
   G.dyingT = 0;
+  buzz([120, 50, 220]);
   world.shake(0.8);
   world.burst(P.x, 1, P.z, 0xffffff, 30, 7);
   Sfx.play("impact", { volume: 0.9 });
@@ -1105,6 +1317,8 @@ function removeObject(o) {
 
 function gameOver() {
   G.mode = "over";
+  replay.stop();
+  setTimeout(() => G.mode === "over" && showShare(true), 300);
   $("#controls").classList.add("hidden");
   const score = Math.floor(G.score);
   const newBest = score > save.best;
@@ -1234,6 +1448,7 @@ function updateRun(dt) {
   // Nouvelles rangées devant
   while (G.nextRowZ > P.z - 120) {
     const extra = spawnRow(G.nextRowZ);
+    if (NOEL && Math.random() < 0.33) addFlake(G.nextRowZ);
     G.nextRowZ -= rowGap() + extra;
   }
 
@@ -1336,6 +1551,11 @@ function updateRun(dt) {
       if (o.rolling) o.mesh.rotation.x += o.vz * dt * 1.6;
       if (o.mesh.userData.roll) o.mesh.userData.roll.rotation.x += o.vz * dt * 2.5;
     }
+    if (o.drop > 0) {
+      o.drop = Math.max(0, o.drop - dt * 9);
+      o.mesh.position.y = o.drop;
+      if (o.drop === 0) world.burst(laneX(o.lane), 0.2, o.z, 0xff7fb5, 8, 3);
+    }
     if (o.kind === "pendulum") {
       // La boule va d'un couloir à l'autre au bout de son fil
       const { ball, rope, top } = o.mesh.userData;
@@ -1347,7 +1567,7 @@ function updateRun(dt) {
       rope.scale.y = Math.hypot(o.ballX, dy);
       rope.rotation.z = Math.atan2(o.ballX, dy);
     }
-    if ((o.kind === "bomb" || o.kind === "bone" || o.kind === "bag") && o.flying > 0) {
+    if ((o.kind === "bomb" || o.kind === "bone" || o.kind === "bag" || o.kind === "book") && o.flying > 0) {
       o.flying -= dt;
       const k = 1 - Math.max(0, o.flying) / 0.85;
       const to = new THREE.Vector3(laneX(o.lane), o.kind === "bone" ? 0.16 : 0, o.z);
@@ -1365,6 +1585,11 @@ function updateRun(dt) {
     }
     if (o.kind === "bomb") o.mesh.userData.spark.scale.setScalar(0.7 + Math.random() * 0.8);
     if (o.kind === "block") o.mesh.userData.cube.rotation.y = 0;
+    if (o.kind === "flake") {
+      o.mesh.userData.star.rotation.z += dt * 1.5;
+      o.mesh.rotation.y += dt * 2;
+      o.mesh.position.y = o.y + Math.sin(G.t * 3 + o.z) * 0.15;
+    }
     if (o.kind === "power") {
       o.mesh.rotation.y += dt * 2.5;
       o.mesh.position.y = o.y + Math.sin(G.t * 4 + o.z) * 0.15;
@@ -1385,7 +1610,7 @@ function updateRun(dt) {
         if (G.boss.dodged < 3) toast(`Pique esquivée ${G.boss.dodged}/3`, "near");
         else unlockSkates();
       }
-      if (["barrier", "high", "wagon", "bomb", "bone", "spike", "rusher", "apple", "bag"].includes(o.kind) && o.lane === P.fromLane && o.lane !== P.lane && G.t - P.lastLaneT < 0.45) {
+      if (["barrier", "high", "wagon", "bomb", "bone", "spike", "rusher", "apple", "bag", "yarn", "book"].includes(o.kind) && o.lane === P.fromLane && o.lane !== P.lane && G.t - P.lastLaneT < 0.45) {
         statWithMissions("near");
         G.score += 50 * multiplier();
         toast("Esquive de justesse ! +" + 50 * multiplier(), "near");
@@ -1393,6 +1618,13 @@ function updateRun(dt) {
       }
     }
     if (POWER.balloon > 0 && P.y > 3.5 && o.kind !== "power") continue;
+    if (o.kind === "flake") {
+      if (dx < 1.1 && Math.abs(P.z - o.z) < 1.2 && Math.abs(P.y + 0.7 - o.mesh.position.y) < 1.6) {
+        removeObject(o);
+        collectFlake(o);
+      }
+      continue;
+    }
     if (o.kind === "power") {
       if (dx < 1.1 && Math.abs(P.z - o.z) < 1.2 && Math.abs(P.y + 0.7 - o.mesh.position.y) < 1.6) {
         removeObject(o);
@@ -1411,8 +1643,9 @@ function updateRun(dt) {
         if (G.skates) returnSpike(o);
         else crash(o);
       }
-    } else if (["barrier", "rusher", "apple"].includes(o.kind) || (["bomb", "bone", "bag"].includes(o.kind) && !(o.flying > 0))) {
-      const h = { bomb: 0.9, bone: 0.7, bag: 0.95, rusher: 0.75, apple: 0.85 }[o.kind] || 1.0;
+    } else if (["barrier", "rusher", "apple", "yarn"].includes(o.kind) || (["bomb", "bone", "bag", "book"].includes(o.kind) && !(o.flying > 0))) {
+      const h = { bomb: 0.9, bone: 0.7, bag: 0.95, rusher: 0.75, apple: 0.85, yarn: 0.95, book: 0.95 }[o.kind] || 1.0;
+      if (o.kind === "yarn" && o.drop > 0.8) continue;
       if (zOverlap(pz0, pz1, o.z - 0.35, o.z + 0.35) && P.y < h) crash(o);
     } else if (o.kind === "high") {
       if (zOverlap(pz0, pz1, o.z - 0.35, o.z + 0.35) && P.slide <= 0 && P.y < 2.5) crash(o);
@@ -1569,6 +1802,7 @@ function tick(dt, draw) {
     world.update(dt, G.t, { playerX: P.x, playerY: P.y, playerZ: P.z, speed: G.mode === "run" && !G.fin ? G.speed : 0, mode: inMenu ? "menu" : G.mode, fly: POWER.balloon > 0 });
     Sfx.setRunning(G.mode === "run" && P.grounded && P.slide <= 0 && !G.fin, G.speed / 16);
   }
+  if (snow) snow.update(world.camera, G.mode === "pause" || G.mode === "cinema" ? 0 : dt, G.mode === "run" && !G.fin ? G.speed * dt : 0);
   if (G.fin) finisherCamera();
   if (G.mode === "reveal") {
     // Caméra de la cérémonie : Kichta à côté du coffre
@@ -1578,7 +1812,10 @@ function tick(dt, draw) {
     world.camera.fov = portrait ? 62 : 52;
     world.camera.updateProjectionMatrix();
   }
-  if (draw) world.render();
+  if (draw) {
+    world.render();
+    replay.frame();
+  }
   if (G.mode === "run" || G.mode === "dying") updateHud();
   if (G.mode === "run") updateTutorial(dt);
 }
@@ -1639,6 +1876,13 @@ function banner(title, sub) {
   el.classList.add("go");
   clearTimeout(banner.timer);
   banner.timer = setTimeout(() => el.classList.add("hidden"), 2600);
+}
+/** Vibration du téléphone (Android ; Safari sur iPhone ne le permet pas). */
+function buzz(pattern) {
+  if (save.vibrate === false || !navigator.vibrate) return;
+  try {
+    navigator.vibrate(pattern);
+  } catch {}
 }
 function flash(color) {
   const el = $("#flash");
@@ -1702,6 +1946,16 @@ function refreshMenu() {
   $("#stageLabel").textContent = save.stage > LEVELS.length ? "Mode infini 🏆" : `Niveau ${save.stage} · ${currentLevel().name}`;
   $("#soundBtn").textContent = save.sound ? "🔊" : "🔇";
   $("#mycatBadge").classList.toggle("hidden", !!save.mycatSeen);
+  $("#noelCard").classList.toggle("hidden", !NOEL);
+  if (NOEL) {
+    const goal = nextNoelGoal();
+    const prev = goal ? NOEL_GOALS[NOEL_GOALS.indexOf(goal) - 1] : null;
+    const from = prev ? prev.flakes : 0;
+    const item = goal && OUTFITS[goal.slot][goal.id];
+    $("#noelCard b").textContent = goal ? `❄️ ${save.noel.flakes} / ${goal.flakes}` : `❄️ ${save.noel.flakes}`;
+    $("#noelCard small").textContent = goal ? `Ramasse des flocons pour gagner : ${item.icon} ${item.name}` : "Tous les cadeaux de Noël sont à toi ! 🎁";
+    $("#noelCard i").style.width = `${goal ? Math.min(100, ((save.noel.flakes - from) / (goal.flakes - from)) * 100) : 100}%`;
+  }
 }
 
 // --- Boutique ---------------------------------------------------------------------
@@ -1724,7 +1978,7 @@ function itemCard(slot, id, item) {
     label = `<i class="coin"></i>${item.price}`;
     disabled = save.coins < item.price;
   } else {
-    label = item.unlock === "level" ? `🔒 Rang ${item.level}` : item.unlock === "boss" ? `🏆 Boss niv. ${item.stage}` : item.unlock === "chest" ? "🎁 Coffres" : "🤫 Secret";
+    label = item.unlock === "level" ? `🔒 Rang ${item.level}` : item.unlock === "boss" ? `🏆 Boss niv. ${item.stage}` : item.unlock === "chest" ? "🎁 Coffres" : item.unlock === "event" ? "🎄 Noël" : "🤫 Secret";
     disabled = true;
     action = "";
   }
@@ -2080,7 +2334,7 @@ function playCinematic(n = 1, fromRun = false, finished = false) {
     toast("Termine ce niveau pour débloquer sa cinématique !", "near");
     return;
   }
-  const src = `${level.video}?v=b7`;
+  const src = `${level.video}?v=b8`;
   if (!video.src.endsWith(src)) {
     video.src = src;
     video.load();
@@ -2094,6 +2348,8 @@ function playCinematic(n = 1, fromRun = false, finished = false) {
   video.currentTime = 0;
   video.classList.remove("hidden");
   $("#skipVideo").classList.remove("hidden");
+  // Le replay finit de s'enregistrer juste avant la vidéo
+  setTimeout(() => G.mode === "cinema" && showShare(fromRun), 400);
   video.dataset.fromRun = fromRun ? "1" : "";
   // Les téléphones peuvent refuser une vidéo avec le son lancée automatiquement :
   // on essaie avec le son, puis sans le son, puis on affiche un bouton « Regarder ».
@@ -2136,6 +2392,7 @@ function endCinematic() {
   $("#videoPlay").classList.add("hidden");
   video.classList.add("hidden");
   $("#skipVideo").classList.add("hidden");
+  $("#shareReplay").classList.add("hidden");
   if (video.dataset.fromRun) {
     G.mode = "run";
     P.invuln = Math.max(P.invuln, 2);
@@ -2149,6 +2406,11 @@ function endCinematic() {
 }
 video.addEventListener("ended", endCinematic);
 $("#skipVideo").onclick = endCinematic;
+$("#shareReplay").onclick = () => {
+  video.pause();
+  shareReplay().finally(() => G.mode === "cinema" && video.play().catch(() => {}));
+};
+$("#shareOver").onclick = shareReplay;
 
 // --- Boutons ---------------------------------------------------------------------------
 const click = (sel, fn) =>
@@ -2194,7 +2456,7 @@ document.querySelectorAll(".back").forEach((b) =>
   }),
 );
 // --- Mon chat : la photo du joueur → la figurine qui lui ressemble le plus ---------------------
-const catThumb = (id) => `assets/cats/${id}.webp?v=b7`;
+const catThumb = (id) => `assets/cats/${id}.webp?v=b8`;
 const ALL_CATS = [{ id: "kichta", name: "Kichta", look: null }, ...CATS];
 let mycatPick = null;
 function catCard(cat, extra = "") {
@@ -2237,7 +2499,7 @@ async function analysePhoto(file) {
   bar.style.width = "4%";
   try {
     await img.decode();
-    const CatMatch = await import("./catmatch.js?v=b7");
+    const CatMatch = await import("./catmatch.js?v=b8");
     const res = await CatMatch.analyse(img, (k) => {
       status.textContent = `Préparation de l'IA… ${Math.round(k * 100)} %`;
       bar.style.width = `${4 + k * 80}%`;
@@ -2335,5 +2597,5 @@ if ("serviceWorker" in navigator && !location.search.includes("debug")) navigato
 
 // Mode test (?debug)
 if (location.search.includes("debug")) {
-  window.kichta = { G, P, POWER, save, tick, themeIndex, menuBiome, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, LEVELS, endBoss, hurtBoss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist, launchRocket, isFinalBlow };
+  window.kichta = { G, P, POWER, save, tick, themeIndex, menuBiome, LANE, laneX, addObject, addPower, coinLine, boss, startReveal, applyLook, BIOMES, pucci, LEVELS, endBoss, hurtBoss, startRun, moveLane, jump, slide, startBoss, activatePower, world, toMenu, gameOver, persist, launchRocket, isFinalBlow, replay };
 }

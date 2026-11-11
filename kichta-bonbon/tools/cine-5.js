@@ -1,11 +1,11 @@
 // Cinématique du niveau 4 : Chacha la chenille est attachée à une ficelle,
 // et Kichta la tape avec sa patte pour la faire valser dans tous les sens.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld } from "../world.js?v=b7";
-import { installThemes, themeIndex } from "../themes.js?v=b7";
-import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b7";
-import { createCaterpillar, animateCaterpillar } from "../bosses.js?v=b7";
-import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b7";
+import { createWorld } from "../world.js?v=b8";
+import { installThemes, themeIndex } from "../themes.js?v=b8";
+import { createToon, dressToon, animateToon, candy } from "../toons.js?v=b8";
+import { createCaterpillar, animateCaterpillar } from "../bosses.js?v=b8";
+import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b8";
 
 const world = createWorld(document.querySelector("#scene"));
 installThemes(world);

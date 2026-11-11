@@ -2,8 +2,8 @@
 // Kichta, avec le même modèle 3D que dans le jeu, fête sa victoire au milieu d'une
 // avalanche de croquettes ; Pucci boude dans un coin, avec béquilles et bandages.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld } from "../world.js?v=b7";
-import { createToon, dressToon, animateToon, addInjuries, candy, canvasTexture } from "../toons.js?v=b7";
+import { createWorld } from "../world.js?v=b8";
+import { createToon, dressToon, animateToon, addInjuries, candy, canvasTexture } from "../toons.js?v=b8";
 
 const W = 1280;
 const H = 720;
