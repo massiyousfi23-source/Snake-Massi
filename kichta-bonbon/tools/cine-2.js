@@ -1,7 +1,7 @@
 // Cinématique du niveau 2 : Kichta découvre une chambre secrète remplie de pâtée.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createToon, dressToon, animateToon, candy, canvasTexture } from "../toons.js?v=b7";
-import { createStage, createSparks, texts, makeCan, makePateeChunk, seg, lerp, FPS } from "./cine-kit.js?v=b7";
+import { createToon, dressToon, animateToon, candy, canvasTexture } from "../toons.js?v=b8";
+import { createStage, createSparks, texts, makeCan, makePateeChunk, seg, lerp, FPS } from "./cine-kit.js?v=b8";
 
 const stage = createStage(document.querySelector("#scene"), { background: 0x2a1838 });
 const { scene, camera } = stage;

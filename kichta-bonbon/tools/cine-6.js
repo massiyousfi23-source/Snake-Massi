@@ -1,11 +1,11 @@
 // Cinématique du niveau 5 : Kichta arrache les ailes de Moumouche la mouche
 // et joue avec elle au sol, pendant que la mouche pleure.
 import * as THREE from "../../vendor/three.module.min.js";
-import { createWorld } from "../world.js?v=b7";
-import { installThemes, themeIndex } from "../themes.js?v=b7";
-import { createToon, dressToon, animateToon } from "../toons.js?v=b7";
-import { createFly, animateFly } from "../bosses.js?v=b7";
-import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b7";
+import { createWorld } from "../world.js?v=b8";
+import { installThemes, themeIndex } from "../themes.js?v=b8";
+import { createToon, dressToon, animateToon } from "../toons.js?v=b8";
+import { createFly, animateFly } from "../bosses.js?v=b8";
+import { texts, seg, lerp, FPS, W, H } from "./cine-kit.js?v=b8";
 
 const world = createWorld(document.querySelector("#scene"));
 installThemes(world);

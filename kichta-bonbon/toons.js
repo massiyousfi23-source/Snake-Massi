@@ -526,6 +526,8 @@ export const OUTFITS = {
     champion: { name: "Couronne de championne", icon: "🏆", unlock: "boss", stage: 4, rarity: "mythique" },
     // Coffres
     noel: { name: "Bonnet de Noël", icon: "🎅", unlock: "chest", rarity: "rare" },
+    // Événement de Noël
+    renne: { name: "Bois de renne", icon: "🦌", unlock: "event", rarity: "legendaire" },
     lapin: { name: "Oreilles de lapin", icon: "🐰", unlock: "chest", rarity: "rare" },
     licorne: { name: "Corne de licorne", icon: "🦄", unlock: "chest", rarity: "epique" },
     // Secrets
@@ -657,6 +659,25 @@ function buildHat(kind) {
     }
     g.add(mesh(GEO.torus, white, [0.36, 0.36, 0.5], [0, 0.02, 0]).rotateX(Math.PI / 2));
     g.position.set(0, 0.28, -0.02);
+  } else if (kind === "renne") {
+    // Bois de renne en velours, avec un petit grelot doré au milieu
+    const wood = candy(0x8a5a2a, { roughness: 0.6, clearcoat: 0.3 });
+    for (const side of [-1, 1]) {
+      const antler = new THREE.Group();
+      const main = mesh(GEO.capsule, wood, [0.045, 0.2, 0.045], [0, 0.2, 0]);
+      antler.add(main);
+      [[0.13, 0.5], [0.22, 0.75]].forEach(([y, a]) => {
+        const tine = mesh(GEO.capsule, wood, [0.035, 0.09, 0.035], [side * 0.07, y + 0.05, 0]);
+        tine.rotation.z = -side * a;
+        antler.add(tine);
+      });
+      antler.position.set(side * 0.17, 0, 0);
+      antler.rotation.z = -side * 0.35;
+      g.add(antler);
+    }
+    g.add(mesh(new THREE.TorusGeometry(0.22, 0.03, 8, 30), candy(0xe8203a), [1, 1, 1], [0, 0.0, 0]).rotateX(Math.PI / 2));
+    g.add(mesh(GEO.sphere, candy(0xffc425, { metalness: 0.8, roughness: 0.15 }), 0.06, [0, 0.03, 0.22]));
+    g.position.set(0, 0.3, -0.02);
   } else if (kind === "cowboy") {
     const leather = candy(0x9a5a2a, { roughness: 0.55, clearcoat: 0.4 });
     g.add(mesh(new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), leather, [0.27, 0.28, 0.24]));

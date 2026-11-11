@@ -3,8 +3,8 @@
 // 2. On compare cette empreinte à celles de descriptions de traits (motif, couleur, poil,
 //    oreilles, visage, yeux, race) calculées à l'avance (ai/text.json).
 // 3. Chaque chat du catalogue reçoit une note selon ses traits ; on garde les meilleurs.
-import { CATS, catAttributes } from "./cats.js?v=b7";
-import { normalizeLook } from "./toons.js?v=b7";
+import { CATS, catAttributes } from "./cats.js?v=b8";
+import { normalizeLook } from "./toons.js?v=b8";
 
 const DIR = new URL("./ai/", import.meta.url).href;
 // Poids réglés sur 168 photos étiquetées (Oxford-IIIT Pet) et 45 photos de Wikimedia Commons

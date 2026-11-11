@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="candy.css?v=b7">
+  <link rel="stylesheet" href="candy.css?v=b8">
   <link rel="modulepreload" href="../vendor/three.core.min.js">
   <link rel="modulepreload" href="../vendor/three.module.min.js">
   <title>Kichta Run Bonbon</title>
@@ -56,6 +56,7 @@
       <div class="title"><h1 class="logo"><span>KICHTA</span><em>RUN</em></h1>
       <p class="tag">La course la plus sucrée du monde 🍭</p></div>
       <div class="menu-bottom">
+        <div id="noelCard" class="noel-card hidden"><span class="noel-ico">🎄</span><div><b>❄️ 0 / 40</b><small>Ramasse des flocons</small><span class="noel-bar"><i></i></span></div></div>
         <button id="playBtn" class="big">JOUER<small id="stageLabel">Niveau 1 · Pucci</small></button>
         <div class="menu-grid">
           <button id="shopBtn"><span class="ico">🛍️</span><span>Boutique</span></button>
@@ -131,6 +132,7 @@
         <div><small>GAGNÉ</small><strong id="overCoins">0</strong></div>
       </div>
       <button id="giftsBtn" class="big gifts hidden">🎁 OUVRIR TES CADEAUX <b id="giftsCount">1</b></button>
+      <button id="shareOver" class="big share hidden">🎬 PARTAGER MON COUP FINAL</button>
       <button id="reviveBtn" class="big revive">CONTINUER <span class="cost"><i class="coin"></i><span id="reviveCost">50</span></span><b id="reviveTimer"></b></button>
       <ul id="overMissions" class="missions small"></ul>
       <div class="row">
@@ -152,11 +154,12 @@
 
     <div id="banner" class="hidden"></div>
     <div id="flash"></div>
-    <video id="cinematic" class="hidden" playsinline preload="metadata" src="assets/cine-1.mp4?v=b7"></video>
+    <video id="cinematic" class="hidden" playsinline preload="metadata" src="assets/cine-1.mp4?v=b8"></video>
     <button id="skipVideo" class="hidden">Passer ▶▶</button>
+    <button id="shareReplay" class="hidden">🎬 Partager mon coup final</button>
     <button id="videoSound" class="hidden">🔊 Activer le son</button>
     <button id="videoPlay" class="big hidden">▶ REGARDER</button>
   </div>
-  <script type="module" src="main.js?v=b7"></script>
+  <script type="module" src="main.js?v=b8"></script>
 </body>
 </html>

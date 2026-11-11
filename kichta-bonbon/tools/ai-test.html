@@ -3,7 +3,7 @@
 <title>Test reconnaissance</title>
 <body style="font:13px system-ui">
 <script type="module">
-  import { analyse } from "../catmatch.js?v=b7";
+  import { analyse } from "../catmatch.js?v=b8";
   const dir = new URLSearchParams(location.search).get("dir") || "photos";
   const files = await (await fetch(`/_aif/${dir}/list.json`)).json();
   const text = await (await fetch("../ai/text.json")).json();

@@ -6,9 +6,9 @@
 // - Ruelle (Moumouche) : poubelles qui débordent, bennes, réverbères…
 // Toujours en style « bonbon » : formes rondes et vernies.
 import * as THREE from "../vendor/three.module.min.js";
-import { BIOMES, LANE } from "./world.js?v=b7";
-import { candy, canvasTexture } from "./toons.js?v=b7";
-import { createBone, createApple, createTrashBag } from "./bosses.js?v=b7";
+import { BIOMES, LANE } from "./world.js?v=b8";
+import { candy, canvasTexture } from "./toons.js?v=b8";
+import { createBone, createApple, createTrashBag } from "./bosses.js?v=b8";
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const mesh = (geo, mat, x = 0, y = 0, z = 0) => {

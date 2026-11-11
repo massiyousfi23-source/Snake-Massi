@@ -111,6 +111,7 @@ export function unlock() {
     }
   }
   Object.keys(raw).forEach(decode);
+  if (sleighWanted && !sleigh) jingle(true);
 }
 export const ready = () => Promise.all(downloads);
 
@@ -241,6 +242,46 @@ function synthesize() {
       d[i] = (Math.sin(phase) * 0.5 + Math.sin(phase * 2) * 0.15) * Math.min(1, t / 0.01) * Math.exp(-t * 7);
     }
   });
+  // Noël : grelot qui tinte (flocon ramassé)
+  const bellTone = (d, start, f, amp, decay = 6) => {
+    for (let i = start; i < d.length; i += 1) {
+      const tt = (i - start) / sr;
+      const env = Math.exp(-tt * decay) * amp;
+      if (env < 0.001) break;
+      d[i] += (Math.sin(2 * Math.PI * f * tt) + 0.5 * Math.sin(2 * Math.PI * f * 2.76 * tt) * Math.exp(-tt * 8) + 0.25 * Math.sin(2 * Math.PI * f * 5.4 * tt) * Math.exp(-tt * 14)) * env;
+    }
+  };
+  buffers.bell = make(0.9, (d) => {
+    bellTone(d, 0, 1567.98, 0.28, 5);
+    bellTone(d, Math.floor(sr * 0.06), 2093, 0.2, 6);
+  });
+  // Grelots de traîneau en boucle (par-dessus la musique), 4 temps à 128 bpm
+  const beat = 60 / 128;
+  buffers.sleigh = make(beat * 4, (d) => {
+    for (let k = 0; k < 8; k += 1) {
+      const start = Math.floor(sr * k * beat * 0.5);
+      const loud = k % 2 ? 0.25 : 0.45;
+      for (let i = start; i < Math.min(d.length, start + sr * 0.18); i += 1) {
+        const tt = (i - start) / sr;
+        let v = 0;
+        for (const f of [5200, 6800, 8100, 9600]) v += Math.sin(2 * Math.PI * f * tt + f);
+        d[i] += (v * 0.18 + (Math.random() * 2 - 1) * 0.35) * Math.exp(-tt * 28) * loud;
+      }
+    }
+  });
+  // « Vive le vent » (mélodie de 1857, domaine public) jouée aux grelots
+  buffers.carol = make(4.2, (d) => {
+    const E = 659.25;
+    const G = 783.99;
+    const C = 523.25;
+    const D = 587.33;
+    const q = 0.24;
+    [[E, 1], [E, 1], [E, 2], [E, 1], [E, 1], [E, 2], [E, 1], [G, 1], [C, 1.5], [D, 0.5], [E, 4]].reduce((t, [f, len]) => {
+      bellTone(d, Math.floor(sr * t), f * 2, 0.22, 4);
+      bellTone(d, Math.floor(sr * t), f, 0.12, 3);
+      return t + len * q;
+    }, 0.02);
+  });
   // Explosion douce de l'ouverture
   buffers.pop = make(0.6, (d, n) => {
     let lp = 0;
@@ -273,8 +314,15 @@ export function play(name, { volume = 0.7, rate = 1, vary = 0.05, wet = true, de
 }
 
 /** Change de musique avec un fondu (null = silence). */
+let noel = false;
+/** Pendant l'événement de Noël, des grelots accompagnent toutes les musiques. */
+export function setNoel(on) {
+  noel = on;
+  jingle(on && !!wanted);
+}
 export function music(name) {
   wanted = name;
+  if (noel) jingle(!!name);
   if (!ctx) return;
   if (current && current.name === name) return;
   if (current) {
@@ -300,6 +348,47 @@ export function music(name) {
   source.connect(gain).connect(musicBus);
   source.start();
   current = { name, source, gain };
+}
+
+/** Flux audio du jeu, pour enregistrer le replay du coup final. */
+let recDest = null;
+export function recordStream() {
+  if (!ctx || !master || !ctx.createMediaStreamDestination) return null;
+  if (!recDest) {
+    recDest = ctx.createMediaStreamDestination();
+    master.connect(recDest);
+  }
+  return recDest.stream;
+}
+
+/** Grelots de Noël par-dessus la musique (on/off). */
+let sleigh = null;
+let sleighWanted = false;
+export function jingle(on) {
+  sleighWanted = on;
+  if (!ctx || !buffers.sleigh) return;
+  if (on && !sleigh) {
+    const source = ctx.createBufferSource();
+    source.buffer = buffers.sleigh;
+    source.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setTargetAtTime(0.32, ctx.currentTime, 0.4);
+    source.connect(gain).connect(musicBus);
+    source.start();
+    sleigh = { source, gain };
+  } else if (!on && sleigh) {
+    const old = sleigh;
+    sleigh = null;
+    old.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.2);
+    setTimeout(() => {
+      try {
+        old.source.stop();
+      } catch {
+        // déjà arrêtée
+      }
+    }, 1200);
+  }
 }
 
 /** Ralenti : la musique ralentit et s'efface un peu (on = false pour revenir). */
